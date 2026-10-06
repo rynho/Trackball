@@ -61,7 +61,7 @@ For any sensor placed at ($\theta, \phi$), the local raw counts map precisely to
 $\Delta X=\omega_x(-\sin \phi)+\omega_y(\cos \phi)+\omega_z(\cos \theta)$\
 $\Delta Y=\omega_x(-\sin \theta \cdot \cos \phi)+\omega_y(-\sin \theta \cdot \sin \phi)$
 
-If we plug your exact angles into these equations ($\theta$ = -60°, $\phi_1$ = 60°, $\phi_2$ = 150°), we can evaluate the sines and cosines. _Note: cos(-60°)=0.5, sin(-60°)=-0.866._
+If we plug your exact angles into these equations ($\theta$=-60°, $\phi_1$=60°, $\phi_2$=150°), we can evaluate the sines and cosines. _Note: cos(-60°)=0.5, sin(-60°)=-0.866._
 
 For Sensor 1 (60°E):
 - $\Delta X_1 = -0.866 \omega_x + 0.5 \omega_y + 0.5 \omega_z$
