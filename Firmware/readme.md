@@ -75,8 +75,8 @@ For Sensor 2 (150°E):
 To run this on the ESP32-S2, we must invert the system of equations. Since we have 4 inputs ($\Delta X_1$, $\Delta Y_1$, $\Delta X_2$, $\Delta Y_2$) and only 3 unknown outputs ($\omega_x, \omega_y, \omega_z$), the system is overdetermined. We use a least-squares matrix inversion to get the most accurate, mathematically balanced translation.
 
 When solved, the exact quantitative formulas for the firmware are:\
-$\omega_x = 0.433\cdot \Delta Y_1 + 0.750\cdot \Delta Y_2$
-$\omega_y = 0.750\cdot \Delta Y_1 - 0.433\cdot \Delta Y_2$
+$\omega_x = 0.433\cdot \Delta Y_1 + 0.750\cdot \Delta Y_2$\
+$\omega_y = 0.750\cdot \Delta Y_1 - 0.433\cdot \Delta Y_2$\
 $\omega_z = 2.000\cdot (\Delta X_1 + \Delta X2) + 0.732\cdot \Delta Y_1 -2.732\cdot \Delta Y_2$
 
 #### Quantitative Insights from the Matrix:
