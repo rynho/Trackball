@@ -56,7 +56,7 @@ Let's break down the exact mathematics for your specific layout.
 	- Local $\Delta Y$ points along the line of longitude (Northward, toward the equator).
 
 #### 2. The Exact Kinematic Equations
-When the ball rotates with an angular velocity $[\omega_x, \omega_y, \omega_z]$, the surface velocity seen by a sensor at latitude $\theta$ and longitude $\phi$ is derived from the cross product of the rotation vector and the sensor's position vector.
+When the ball rotates with an angular velocity [$\omega_x$, $\omega_y$, $\omega_z$], the surface velocity seen by a sensor at latitude $\theta$ and longitude $\phi$ is derived from the cross product of the rotation vector and the sensor's position vector.
 For any sensor placed at ($\theta, \phi$), the local raw counts map precisely to the 3D rotation via these two equations:\
 $\Delta X=\omega_x(-\sin \phi)+\omega_y(\cos \phi)+\omega_z(\cos \theta)$\
 $\Delta Y=\omega_x(-\sin \theta \cdot \cos \phi)+\omega_y(-\sin \theta \cdot \sin \phi)$
@@ -72,7 +72,7 @@ For Sensor 2 (150°E):
 - $\Delta Y_2 = 0.75 \omega_x - 0.433 \omega_y$
 
 #### 3. The Inverted Matrix (Firmware Code)
-To run this on the ESP32-S2, we must invert the system of equations. Since we have 4 inputs ($\Delta X_1, \Delta Y_1, \Delta X_2, \Delta Y_2$) and only 3 unknown outputs ($\omega_x, \omega_y, \omega_z$), the system is overdetermined. We use a least-squares matrix inversion to get the most accurate, mathematically balanced translation.
+To run this on the ESP32-S2, we must invert the system of equations. Since we have 4 inputs ($\Delta X_1$, $\Delta Y_1$, $\Delta X_2$, $\Delta Y_2$) and only 3 unknown outputs ($\omega_x, \omega_y, \omega_z$), the system is overdetermined. We use a least-squares matrix inversion to get the most accurate, mathematically balanced translation.
 
 When solved, the exact quantitative formulas for the firmware are:\
 $\omega_x = 0.433\cdot \Delta Y_1 + 0.750\cdot \Delta Y_2$
