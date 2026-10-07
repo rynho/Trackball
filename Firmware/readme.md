@@ -81,7 +81,6 @@ $\omega _z=-\Delta X_1 - \Delta X_2 - \frac{\sqrt{3}}{2} \Delta Y_1 + \frac{\sqr
 
 #### Quantitative Insights from the Matrix:
 - **The Radius/Speed Scaling**: Notice the multiplier for $\omega_z$ features a coefficient of 1 for the $\Delta X$ inputs. This compensates for the fact that at 60°S, the radius of the latitude circle is exactly half `cos(60°)=0.5` of the ball's actual radius. The firmware scales up the Z-axis inputs by 2x to ensure twisting feels just as fast as rolling.
-- **Asymmetric Y-Axis Panning**: Because Sensor 1 sits at 60°E (closer to the 90°E X-axis), rolling the ball forward $\omega_y$ causes a massive shift in Sensor 1's local longitude line ($\frac{\sqrt{3}}{2}$), whereas Sensor 2 sitting at 150°E is angled further away from that track, yielding a smaller relative response ($\frac{1}{2}$).
 - **Crosstalk Elimination**: The long equation for $\omega_z$ proves why simple addition isn't enough for an asymmetric layout. If you just added $\Delta X_1 + \Delta X_2$, rolling the ball diagonally would cause the cursor to "drift" or falsely trigger a twist. The trailing $\Delta Y$ subtraction terms act as a mathematical gyroscope, actively stripping out rolling artifacts from your twist calculations.
 
 ```
@@ -94,11 +93,10 @@ void calculate_global_movement(float dx1, float dy1, float dx2, float dy2,
     float scale_dy1 = SQRT3_DIV2 * dy1;
     float scale_dy2 = SQRT3_DIV2 * dy2;
 
-    // 2. Solve for X and Y angular velocities
-    *out_wx = (-0.5f * dy1) + scale_dy2;
-    *out_wy = -scale_dy1 - (0.5f * dy2);
+    // 2. Solve for X and Y angular velocities (decoupled dy method)
+    *out_wx = -scale_dy1 - (0.5f * dy2);
+    *out_wy = (0.5f * dy1) - scale_dy2;
 
     // 3. Solve for Z twist using a balanced average from both sensors
     *out_wz = -dx1 - dx2 - scale_dy1 + scale_dy2;
-}
 ```
