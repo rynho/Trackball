@@ -97,9 +97,9 @@ void calculate_global_movement(float dx1, float dy1, float dx2, float dy2,
     float scale_dy2 = SQRT3_DIV2 * dy2;
 
     // 2. Solve for X and Y angular velocities (decoupled dy method)
-    *out_wx = -scale_dy1 - (0.5f * dy2);
-    *out_wy = (0.5f * dy1) - scale_dy2;
+    *out_wx = scale_dy1 + (0.5f * dy2);
+    *out_wy = -(0.5f * dy1) + scale_dy2;
 
     // 3. Solve for Z twist using a balanced average from both sensors
-    *out_wz = -dx1 - dx2 - scale_dy1 + scale_dy2;
+    *out_wz = dx1 + dx2 + scale_dy1 - scale_dy2;
 ```
