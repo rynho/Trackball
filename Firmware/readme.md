@@ -106,3 +106,45 @@ void calculate_global_movement(float dx1, float dy1, float dx2, float dy2,
     *out_wz = - dx1 - dx2 - scale_dy1 + scale_dy2;
 }
 ```
+
+## Dedicated Scroll Wheel
+There will be an extra dedicated scroll wheel similar to Kensington Orbit or Expert. It will leverage two optical interrupter to encode the rotation, based on quadrature encoding principle.  While the two receiver channels' waveform should be digitally 90° phase apart ideally, it works as far as channel B's rising edge dropped in channel A's high state.
+```
+// Interrupt Service Routine (ISR) stored in RAM for speed
+void IRAM_ATTR readEncoder() {
+  int aState = digitalRead(ENCODER_A);
+  int bState = digitalRead(ENCODER_B);
+  
+  // If states are equal, encoder is spinning clockwise
+  if (aState == bState) {
+    encoderTicks++;
+  } else {
+    encoderTicks--;
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  
+  // Configure pins with internal pull-up resistors 
+  // (Change to INPUT if your encoder has external pull-ups or active outputs)
+  pinMode(ENCODER_A, INPUT_PULLUP);
+  pinMode(ENCODER_B, INPUT_PULLUP);
+  
+  // Trigger interrupt on any logic change (Rising or Falling) on Channel A
+  attachInterrupt(digitalPinToInterrupt(ENCODER_A), readEncoder, CHANGE);
+}
+
+void loop() {
+  static long lastTicks = 0;
+  
+  // Only print when the position actually changes
+  if (encoderTicks != lastTicks) {
+    lastTicks = encoderTicks;
+    Serial.print("Position (Ticks): ");
+    Serial.println(lastTicks);
+  }
+  
+  delay(10); // Small delay to avoid flooding the serial monitor
+}
+```
