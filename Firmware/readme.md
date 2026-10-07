@@ -43,14 +43,17 @@ To make the trackball accurate in a quantitative sense, it needs to map the raw 
 Let's break down the exact mathematics for your specific layout.
 #### 1. Establishing the Coordinate Systems
 1. Global Deck Coordinates:
-	- $+\omega_x$ = Rolling the ball to the right (towards 90°E).
-	- $+\omega_y$ = Rolling the ball forward (towards 180°E).
-	- $+\omega_z$ = Twisting the ball clockwise (looking from above).
-2. Sensor Positions on a Unit Sphere $(R=1)$:
+   	- X axis: pointing and increasing out towards viewer on horizontal plane.
+   	- Y axis: pointing and increasing to right on horizontal plane.
+   	- Z axis: pointing and increasing up. 
+	- $+\omega_x$ = Rolling the ball to the left around X-axis (towards 270°E).
+	- $+\omega_y$ = Rolling the ball backward around Y-axis (towards 0°E).
+	- $+\omega_z$ = Twisting the ball counter-clockwise around Z-axis (looking from above).
+3. Sensor Positions on a Unit Sphere $(R=1)$:
 	- Latitude $\theta$ = -60° (or 60°S).
 	- Sensor 1 Longitude $\phi_1$ = 60°.
 	- Sensor 2 Longitude $\phi_2$ = 150°.
-3. Sensor Local Axes:
+4. Sensor Local Axes:
 	- Assume the sensor is aligned flat against the ball's surface.
 	- Local $\Delta X$ points along the line of latitude (Eastward).
 	- Local $\Delta Y$ points along the line of longitude (Northward, toward the equator).
