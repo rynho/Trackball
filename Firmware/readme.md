@@ -42,13 +42,15 @@ By placing them precisely 90° apart on the same latitude, the ESP32-S2 firmware
 To make the trackball accurate in a quantitative sense, it needs to map the raw sensor readings to the true 3D angular velocity vector of the ball $\vec{\omega} = [\omega_x, \omega_y, \omega_z]^T$ using a precise kinematic transformation matrix.
 Let's break down the exact mathematics for your specific layout.
 #### 1. Establishing the Coordinate Systems
-1. Global Deck Coordinates:
+1. Global Deck Coordinates (Cartesian coordinate, right handed) :
    	- X axis: pointing and increasing out towards viewer on horizontal plane.
    	- Y axis: pointing and increasing to right on horizontal plane.
    	- Z axis: pointing and increasing up. 
 	- $+\omega_x$ = Rolling the ball to the left around X-axis (towards 270°E).
 	- $+\omega_y$ = Rolling the ball backward around Y-axis (towards 0°E).
 	- $+\omega_z$ = Twisting the ball counter-clockwise around Z-axis (looking from above).
+	- Equator is latitude 0°, increasing upward, North pole is 90°, South pole is -90°.
+	- X axis direction is longitude 0° (Prime Meridian), towards wrist.
 3. Sensor Positions on a Unit Sphere $(R=1)$:
 	- Latitude $\theta$ = -60° (or 60°S).
 	- Sensor 1 Longitude $\phi_1$ = 60°.
