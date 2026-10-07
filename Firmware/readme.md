@@ -58,29 +58,47 @@ Let's break down the exact mathematics for your specific layout.
 #### 2. The Exact Kinematic Equations
 When the ball rotates with an angular velocity $[\omega_x$, $\omega_y$, $\omega_z]$, the surface velocity seen by a sensor at latitude $\theta$ and longitude $\phi$ is derived from the cross product of the rotation vector and the sensor's position vector.
 For any sensor placed at ($\theta, \phi$), the local raw counts map precisely to the 3D rotation via these two equations:\
-$\Delta X=\omega_x(-\sin \phi)+\omega_y(\cos \phi)+\omega_z(\cos \theta)$\
-$\Delta Y=\omega_x(-\sin \theta \cdot \cos \phi)+\omega_y(-\sin \theta \cdot \sin \phi)$
+$\Delta X = \omega_x(\sin\theta \cdot \cos\phi) + \omega_y(\sin\theta \cdot \sin\phi) + \omega_z(-\cos\theta)$\
+$\Delta Y = \omega_x(-\sin\phi) + \omega_y(\cos\phi)$
 
-If we plug your exact angles into these equations ($\theta$=-60°, $\phi_1$=60°, $\phi_2$=150°), we can evaluate the sines and cosines. _Note: cos(-60°)=0.5, sin(-60°)=-0.866._
+If we plug your exact angles into these equations ($\theta$=-60°, $\phi_1$=60°, $\phi_2$=150°), we can evaluate the sines and cosines.
 
-For Sensor 1 (60°E):
-- $\Delta X_1 = -0.866 \omega_x + 0.5 \omega_y + 0.5 \omega_z$
-- $\Delta Y_1 = 0.433 \omega_x + 0.75 \omega_y$
+For Sensor 1 (-60°S, 60°E):
+- $\Delta X_1 = -\frac{\sqrt{3}}{4}\omega_x - \frac{3}{4}\omega_y - \frac{1}{2}\omega_z$
+- $\Delta Y_1 = -\frac{\sqrt{3}}{2}\omega_x + \frac{1}{2}\omega_y$
 
-For Sensor 2 (150°E):
-- $\Delta X_2 = -0.5 \omega_x - 0.866 \omega_y + 0.5 \omega_z$
-- $\Delta Y_2 = 0.75 \omega_x - 0.433 \omega_y$
+For Sensor 2 (-60°S, 150°E):
+- $\Delta X_2 = \frac{3}{4}\omega_x - \frac{\sqrt{3}}{4}\omega_y - \frac{1}{2}\omega_z$
+- $\Delta Y_2 = -\frac{1}{2}\omega_x - \frac{\sqrt{3}}{2}\omega_y$
 
 #### 3. The Inverted Matrix (Firmware Code)
 To run this on the ESP32-S2, we must invert the system of equations. Since we have 4 inputs ($\Delta X_1$, $\Delta Y_1$, $\Delta X_2$, $\Delta Y_2$) and only 3 unknown outputs ($\omega_x, \omega_y, \omega_z$), the system is overdetermined. We use a least-squares matrix inversion to get the most accurate, mathematically balanced translation.
 
 When solved, the exact quantitative formulas for the firmware are:\
-$\omega_x = 0.433\cdot \Delta Y_1 + 0.750\cdot \Delta Y_2$\
-$\omega_y = 0.750\cdot \Delta Y_1 - 0.433\cdot \Delta Y_2$\
-$\omega_z = 2.000\cdot (\Delta X_1 + \Delta X2) + 0.732\cdot \Delta Y_1 -2.732\cdot \Delta Y_2$
+$\omega _x=-\frac{\sqrt{3}}{2} \Delta Y_1 - \frac{1}{2} \Delta Y_2$\
+$\omega _y=\frac{1}{2} \Delta Y_1 - \frac{\sqrt{3}}{2} \Delta Y_2$\
+$\omega _z=-\Delta X_1 - \Delta X_2 - \frac{\sqrt{3}}{2} \Delta Y_1 + \frac{\sqrt{3}}{2} \Delta Y_2$
 
 #### Quantitative Insights from the Matrix:
-- **The Radius/Speed Scaling**: Notice the multiplier for $\omega_z$ features a coefficient of 2.000 for the $\Delta X$ inputs. This exactly compensates for the fact that at 60°S, the radius of the latitude circle is exactly half `cos(60°)=0.5` of the ball's actual radius. The firmware scales up the Z-axis inputs by 2x to ensure twisting feels just as fast as rolling.
-- **Asymmetric Y-Axis Panning**: Your intuition was entirely accurate. Because Sensor 1 sits at 60°E (closer to the 90°E X-axis), rolling the ball forward $\omega_y$ causes a massive shift in Sensor 1's local longitude line (0.750), whereas Sensor 2 sitting at 150°E is angled further away from that track, yielding a smaller relative response (-0.433).
+- **The Radius/Speed Scaling**: Notice the multiplier for $\omega_z$ features a coefficient of 1 for the $\Delta X$ inputs. This compensates for the fact that at 60°S, the radius of the latitude circle is exactly half `cos(60°)=0.5` of the ball's actual radius. The firmware scales up the Z-axis inputs by 2x to ensure twisting feels just as fast as rolling.
+- **Asymmetric Y-Axis Panning**: Because Sensor 1 sits at 60°E (closer to the 90°E X-axis), rolling the ball forward $\omega_y$ causes a massive shift in Sensor 1's local longitude line ($\frac{\sqrt{3}}{2}$), whereas Sensor 2 sitting at 150°E is angled further away from that track, yielding a smaller relative response ($\frac{1}{2}$).
 - **Crosstalk Elimination**: The long equation for $\omega_z$ proves why simple addition isn't enough for an asymmetric layout. If you just added $\Delta X_1 + \Delta X_2$, rolling the ball diagonally would cause the cursor to "drift" or falsely trigger a twist. The trailing $\Delta Y$ subtraction terms act as a mathematical gyroscope, actively stripping out rolling artifacts from your twist calculations.
 
+```
+// Define the geometric transformation constant
+const float SQRT3_DIV2 = 0.8660254038f; 
+
+void calculate_global_movement(float dx1, float dy1, float dx2, float dy2, 
+                                float *out_wx, float *out_wy, float *out_wz) {
+    // 1. Pre-calculate common scaled variables to save clock cycles
+    float scale_dy1 = SQRT3_DIV2 * dy1;
+    float scale_dy2 = SQRT3_DIV2 * dy2;
+
+    // 2. Solve for X and Y angular velocities
+    *out_wx = (-0.5f * dy1) + scale_dy2;
+    *out_wy = -scale_dy1 - (0.5f * dy2);
+
+    // 3. Solve for Z twist using a balanced average from both sensors
+    *out_wz = -dx1 - dx2 - scale_dy1 + scale_dy2;
+}
+```
