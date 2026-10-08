@@ -11,9 +11,15 @@ jobs:
 
       - name: Fetch File Directly From URL
         run: |
-          # REPLACE THE URL BELOW WITH YOUR ACTUAL LINK
-          # REPLACE "my-file.zip" WITH WHAT YOU WANT TO NAME THE FILE
-          curl -L "https://www.google.com/goto?url=CAESeQHrOzAV3JcGisCp9-jcIxVwkBKnEbGBPbp22CIgcGz9N3HnsovzY7cof4mw8mJY2hGdcx5u44Wb0er6woszVrbg6RN9l8EqXoAmVLcs24nzKegBX26I_nPBl6UXeOlvHORH2RfNWan8xWmqZCmil6TbWb4s-FweoX4" -o "Reference/Sensor Datasheet/PMW3610DM-SUDU.pdf"
+          # Replace URL below with actual link;
+          # Replace OUT with directory and file name.
+          
+          URL="https://github.com/ogatatsu/PMW3360-Module/blob/master/Datasheets/"
+          URL+="PMS0058-PMW3360DM-T2QU-DS-R1.50-26092016._20161202173741.pdf"
+          
+          OUT="Reference/Sensor Datasheet/PMW3360DM-T2QU-DS-R1.50-26092016.pdf"
+          
+          curl -L "$URL" -o "$OUT"
 
       - name: Commit File to GitHub
         run: |
