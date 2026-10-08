@@ -48,7 +48,7 @@ const int CONFIG_BTN_PIN = 2; // Switched to GPIO2 as requested
 
 // --- Profile Presets ---
 const uint16_t cpi_presets[] = {500, 1000, 1500, 3000}; // Added 1000 CPI
-const uint16_t poll_presets[] = {125, 250, 500, 1000};      // Added 250 Hz
+const uint16_t poll_presets[] = {125, 500, 1000};      // Added 250 Hz
 const int NUM_CPI = sizeof(cpi_presets) / sizeof(cpi_presets[0]);
 const int NUM_POLL = sizeof(poll_presets) / sizeof(poll_presets[0]);
 
