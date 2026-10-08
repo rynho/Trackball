@@ -44,25 +44,27 @@ Implement the trackball as a 3-channel composite device:
 #include <Preferences.h>
 
 // --- Pin Assignments ---
-const int CONFIG_BTN_PIN = 2; 
+const int CONFIG_BTN_PIN = 2; // Switched to GPIO2 as requested
 
 // --- Profile Presets ---
-const uint16_t cpi_presets[] = {400, 800, 1600, 3000};
-const uint16_t poll_presets[] = {125, 250, 500, 1000};
+const uint16_t cpi_presets[] = {500, 1000, 1500, 3000}; // Added 1000 CPI
+const uint16_t poll_presets[] = {125, 250, 500, 1000};      // Added 250 Hz
+const int NUM_CPI = sizeof(cpi_presets) / sizeof(cpi_presets[0]);
+const int NUM_POLL = sizeof(poll_presets) / sizeof(poll_presets[0]);
 
 // --- Profile State Vectors ---
 // Stored = what's in Flash | Active = what the hardware is running right now
-int saved_cpi_idx = 1;  
-int saved_poll_idx = 1; 
-bool saved_spacemouse_mode = false;
+int saved_cpi_idx = 1;         // Default to index 1 (1000 CPI) on first boot
+int saved_poll_idx = 0;        // Default to index 0 (125 Hz) on first boot
+bool saved_spacemouse_mode = false; // Default to false (no 6DOF) on first boot
 
 int active_cpi_idx = 1;  
-int active_poll_idx = 1; 
+int active_poll_idx = 0; 
 bool is_spacemouse_mode = false;
 
 // --- State Machine & Debounce ---
-enum USBProfile { PROFILE_WORK_SERIAL, PROFILE_HOME_RNDIS };
-USBProfile current_usb_profile = PROFILE_WORK_SERIAL;
+enum USBProfile { PROFILE_CLI, PROFILE_GUI }; // Renamed to CLI and GUI
+USBProfile current_usb_profile = PROFILE_CLI;
 
 const unsigned long HOLD_TIME_MS = 2000; 
 unsigned long btn_press_start_time = 0;
@@ -70,6 +72,18 @@ bool btn_was_pressed = false;
 
 Preferences prefs;
 WebServer server(80); 
+
+// Global composite USB class interfaces
+// Channel 1 & 2: Mounted via the HID Subsystem (Standard Mouse + Multi-Axis SpaceMouse)
+USBHIDMouse MouseInterface; 
+// Note: Down the line, you will combine this with a custom report descriptor 
+// to expose Interface 0 (Mouse) and Interface 1 (SpaceMouse/Joystick) simultaneously.
+
+// Channel 3 (Profile 1 Option): Virtual Serial COM Line
+USBCDC SerialInterface; 
+
+// Channel 3 (Profile 2 Option): Virtual Network Card
+USBNetwork NetworkInterface; 
 
 // Local IP endpoints for over-the-wire browser routing
 IPAddress local_IP(192, 168, 7, 1);
@@ -119,20 +133,20 @@ void handle_root_route() {
   html += "select, button{padding:12px; margin:10px; width:80%; max-width:300px; border-radius:6px; border:none; font-size:16px;}";
   html += ".btn-apply{background:#17a2b8; color:#fff; font-weight:bold; cursor:pointer;}";
   html += ".btn-save{background:#28a745; color:#fff; font-weight:bold; cursor:pointer;}</style>";
-  html += "<title>Trackball Wired Config</title></head><body>";
-  html += "<h2>Trackball Wired Portal</h2>";
+  html += "<title>Trackball Profile GUI</title></head><body>";
+  html += "<h2>Trackball Profile GUI Portal</h2>";
   html += "<form method='POST'>";
   
   // CPI Selector
   html += "<label>Resolution (CPI):</label><br><select name='cpi'>";
-  for(int i=0; i<4; i++) {
+  for(int i=0; i<NUM_CPI; i++) {
     html += "<option value='" + String(i) + "'" + (i == active_cpi_idx ? " selected" : "") + ">" + String(cpi_presets[i]) + " CPI</option>";
   }
   html += "</select><br><br>";
 
   // Polling Selector
   html += "<label>Polling Rate:</label><br><select name='poll'>";
-  for(int i=0; i<3; i++) {
+  for(int i=0; i<NUM_POLL; i++) {
     html += "<option value='" + String(i) + "'" + (i == active_poll_idx ? " selected" : "") + ">" + String(poll_presets[i]) + " Hz</option>";
   }
   html += "</select><br><br>";
@@ -140,7 +154,7 @@ void handle_root_route() {
   // SpaceMouse Selector
   html += "<label>Multi-Axis Mode:</label><br><select name='spacemouse'>";
   html += "<option value='0'" + String(!is_spacemouse_mode ? " selected" : "") + ">Standard Mouse</option>";
-  html += "<option value='1'" + String(is_spacemouse_mode ? " selected" : "") + ">SpaceMouse Simulation</option>";
+  html += "<option value='1'" + String(is_spacemouse_mode ? " selected" : "") + ">SpaceMouse Simulation (6DOF)</option>";
   html += "</select><br><br>";
 
   html += "<button type='submit' formaction='/apply' class='btn-apply'>Apply & Test (RAM Only)</button><br>";
@@ -176,13 +190,37 @@ void handle_web_save() {
 
 void handle_serial_cli() {
   if (Serial.available() > 0) {
-    String command = Serial.readStringUntil('\n');
+    String command = Serial.readStringUntil('
+');
     command.trim();
 
     if (command.startsWith("SET_CPI ")) {
-      active_cpi_idx = command.substring(8).toInt();
-      Serial.println(">> Target CPI prepared in RAM.");
+      int val = command.substring(8).toInt();
+      for (int i = 0; i < NUM_CPI; i++) {
+        if (cpi_presets[i] == val) {
+          active_cpi_idx = i;
+          Serial.println(">> Target CPI prepared in RAM.");
+          return;
+        }
+      }
+      Serial.println(">> Invalid CPI value.");
     } 
+    else if (command.startsWith("SET_POLL ")) {
+      int val = command.substring(9).toInt();
+      for (int i = 0; i < NUM_POLL; i++) {
+        if (poll_presets[i] == val) {
+          active_poll_idx = i;
+          Serial.println(">> Target Polling prepared in RAM.");
+          return;
+        }
+      }
+      Serial.println(">> Invalid Polling value.");
+    }
+    else if (command.startsWith("SET_6DOF ")) {
+      int val = command.substring(9).toInt();
+      is_spacemouse_mode = (val == 1);
+      Serial.println(">> Target 6DOF mode prepared in RAM.");
+    }
     else if (command.equals("APPLY")) {
       apply_hardware_profiles();
       Serial.println(">> Profile applied to hardware layers (RAM only).");
@@ -197,54 +235,72 @@ void handle_serial_cli() {
 
 void switch_usb_stack_runtime(USBProfile target_mode) {
   USB.end();
-  delay(400); // Disconnect settling pause
+  delay(500); // Disconnect settling pause
 
-  if (target_mode == PROFILE_HOME_RNDIS) {
-    current_usb_profile = PROFILE_HOME_RNDIS;
+  if (target_mode == PROFILE_GUI) {
+    current_usb_profile = PROFILE_GUI;
     
-    // Mount RNDIS pipelines on-demand
-    Network.config(local_IP, gateway, subnet);
-    Network.begin(); 
-    
-    server.on("/", handle_root_route);
-    server.on("/apply", HTTP_POST, handle_web_apply);
-    server.on("/save", HTTP_POST, handle_web_save);
+    // --- BINDING PROFILE GUI (Mouse + SpaceMouse + RNDIS Network Portal) ---
+    USB.PID(0x4002); 
+    USB.productName("Trackball GUI");
+
+    NetworkInterface.begin(local_IP, gateway, subnet);
     server.begin();
-  } else {
-    current_usb_profile = PROFILE_WORK_SERIAL;
     
-    // Fallback into safe configuration mappings
+    USB.begin(); 
+  } else {
+    current_usb_profile = PROFILE_CLI;
+    
+    // --- BINDING PROFILE CLI (Mouse + SpaceMouse + CDC-ACM Serial) ---
     server.stop();
-    Serial.begin(115200);
+    
+    USB.PID(0x4001); 
+    USB.productName("Trackball CLI");
+
+    SerialInterface.begin(115200);
+    MouseInterface.begin();
+    
     USB.begin();
   }
 }
 
 void setup() {
+  pinMode(CONFIG_BTN_PIN, INPUT_PULLUP);
+
   // Pull configuration attributes from NVS memory pools
   prefs.begin("trackball", false);
+  
+  // Note: Defaults specify index 1 (1000 CPI), index 0 (125 Hz), and false (no 6DOF) for first boot
   saved_cpi_idx = prefs.getInt("cpi_idx", 1);    
-  saved_poll_idx = prefs.getInt("poll_idx", 1);  
+  saved_poll_idx = prefs.getInt("poll_idx", 0);  
   saved_spacemouse_mode = prefs.getBool("space_mode", false);
 
-  // Initialize runtime system loops using values pulled from storage
+  // Initialize runtime variables using values pulled from storage
   active_cpi_idx = saved_cpi_idx;
   active_poll_idx = saved_poll_idx;
   is_spacemouse_mode = saved_spacemouse_mode;
 
+  // Configure Profile 1 (Default Whitelisted Identity: Profile CLI)
+  USB.VID(0x303A); // Standard Espressif VID (or use a generic whitelisted one)
+  USB.PID(0x4001); 
+  USB.manufacturer("Custom Trackball");
+  USB.productName("Profile CLI");
+
+  // Mount composite elements
+  SerialInterface.begin(115200); 
+  MouseInterface.begin();
+
   apply_hardware_profiles();
 
-  // Always force standard Profile Work (Daily COM/Mouse Profile) on power-up
-  pinMode(CONFIG_BTN_PIN, INPUT_PULLUP);
-  current_usb_profile = PROFILE_WORK_SERIAL;
-  Serial.begin(115200);
+  // Always force standard Profile 1 (Profile CLI) on hardware power-up/replug
+  current_usb_profile = PROFILE_CLI;
   USB.begin();
 }
 
 void loop() {
   unsigned long current_time = millis();
 
-  // --- Dynamic Switch Monitoring Loop ---
+  // --- Dynamic Switch Monitoring Loop (GPIO2) ---
   if (digitalRead(CONFIG_BTN_PIN) == LOW) {
     if (!btn_was_pressed) {
       btn_press_start_time = current_time;
@@ -252,10 +308,10 @@ void loop() {
     } else if (current_time - btn_press_start_time > HOLD_TIME_MS) {
       btn_was_pressed = false; 
       
-      if (current_usb_profile == PROFILE_WORK_SERIAL) {
-        switch_usb_stack_runtime(PROFILE_HOME_RNDIS);
+      if (current_usb_profile == PROFILE_CLI) {
+        switch_usb_stack_runtime(PROFILE_GUI);
       } else {
-        switch_usb_stack_runtime(PROFILE_WORK_SERIAL);
+        switch_usb_stack_runtime(PROFILE_CLI);
       }
     }
   } else {
@@ -263,13 +319,13 @@ void loop() {
   }
 
   // --- Execution Routine Selection Mapping ---
-  if (current_usb_profile == PROFILE_HOME_RNDIS) {
+  if (current_usb_profile == PROFILE_GUI) {
     server.handleClient();
   } else {
     handle_serial_cli();
   }
 
-  // Pure High-Performance Loop Pipeline
+  // Pure High-Performance Loop Pipeline (1,000 Hz structural block target)
   run_high_performance_trackball_pipeline();
 }
 
