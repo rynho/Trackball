@@ -13,7 +13,7 @@ jobs:
         run: |
           # REPLACE THE URL BELOW WITH YOUR ACTUAL LINK
           # REPLACE "my-file.zip" WITH WHAT YOU WANT TO NAME THE FILE
-          curl -L "CAESeQHrOzAV3JcGisCp9-jcIxVwkBKnEbGBPbp22CIgcGz9N3HnsovzY7cof4mw8mJY2hGdcx5u44Wb0er6woszVrbg6RN9l8EqXoAmVLcs24nzKegBX26I_nPBl6UXeOlvHORH2RfNWan8xWmqZCmil6TbWb4s-FweoX4" -o "PMW3610DM-SUDU.pdf"
+          curl -L "https://www.google.com/goto?url=CAESeQHrOzAV3JcGisCp9-jcIxVwkBKnEbGBPbp22CIgcGz9N3HnsovzY7cof4mw8mJY2hGdcx5u44Wb0er6woszVrbg6RN9l8EqXoAmVLcs24nzKegBX26I_nPBl6UXeOlvHORH2RfNWan8xWmqZCmil6TbWb4s-FweoX4" -o "PMW3610DM-SUDU.pdf"
 
       - name: Commit File to GitHub
         run: |
