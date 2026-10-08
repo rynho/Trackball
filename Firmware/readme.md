@@ -1,3 +1,286 @@
+## MCU Pin Mapping
+1. Dual PAW3805EK Sensors (5 Pins)
+The ESP32-S2 features a flexible GPIO matrix, which means you can assign any general-purpose pin to act as your SPI lines.
+	- Shared SCLK: GPIO7 (Default hardware SPI clock)
+	- Sensor 1 (Trackball Ball): GPIO11 (SDIO_1) + GPIO12 (CS_1)
+	- Sensor 2 (Scroll Ring Backing): GPIO9 (SDIO_2) + GPIO10 (CS_2)
+
+2. Primary Mouse Switches (4 Pins)
+	- Left Click: GPIO33
+	- Right Click: GPIO34
+	- Middle/Scroll Click: GPIO35
+	- Forward/Back Macro: GPIO36
+
+3. Optical Scroll Ring Interrupters (2 Pins)
+	- Phase A (Channel 1): GPIO13
+	- Phase B (Channel 2): GPIO14
+
+4. Config Trigger Buttons (1 Pin)
+	- Leveraging an extra USB channel to configure instead of hardware buttons.
+	- Implement a trigger button (GPIO2) to switch between two config mode: office and home.
+ 	- Office mode leverages CDC-ACM (virtual serial) to avoid security concern.
+  - Home mode implements RNDIS (virtual ethernet) to allow web GUI.
+  - Some config options are DPI (400, 800, 1600, 3000), Polling Rate (125, 250, 500, 1000), Multi-Axis (enable 6DOF control), and to "apply" and "save" the config.
+
+5. Caution
+	- GPIO0 is kept empty: it's wired directly to physical on-board "BOOT" button.
+	- GPIO15 is kept empty: it's tied to onboard blue status LED.
+
+## USB Interface
+Implement the trackball as a 3-channel composite device:
+- Channel 1 (HID Mouse): Sends standard mouse movements (X/Y deltas) and standard clicks.
+- Channel 2 (HID SpaceMouse/Joystick): A separate HID endpoint simulating a multi-axis 6DOF controller for CAD or 3D navigation.
+- Channel 3 Configuration.
+	- In Office mode (USB CDC-ACM / Virtual COM Port): A standard serial communications port used to host the text-based configuration menu.
+	- In Home mode (USB RNDIS): The virtual network interface initializes instantly over the wire. You open your browser, navigate to your crisp local dashboard page (e.g., http://192.168.7.1), click your settings, and save.
+	- In both case, implement "apply" to test in RAM, and include <Preferences.h> in Arduino IDE to save the config in flash storage.
+
+```
+#include "USB.h"
+#include "USBHIDMouse.h" // Replace with your compound HID/SpaceMouse stack down the line
+#include "USBCDC.h"
+#include "USBNetwork.h"
+#include <WebServer.h>
+#include <Preferences.h>
+
+// --- Pin Assignments ---
+const int CONFIG_BTN_PIN = 2; 
+
+// --- Profile Presets ---
+const uint16_t cpi_presets[] = {400, 800, 1600, 3000};
+const uint16_t poll_presets[] = {125, 250, 500, 1000};
+
+// --- Profile State Vectors ---
+// Stored = what's in Flash | Active = what the hardware is running right now
+int saved_cpi_idx = 1;  
+int saved_poll_idx = 1; 
+bool saved_spacemouse_mode = false;
+
+int active_cpi_idx = 1;  
+int active_poll_idx = 1; 
+bool is_spacemouse_mode = false;
+
+// --- State Machine & Debounce ---
+enum USBProfile { PROFILE_WORK_SERIAL, PROFILE_HOME_RNDIS };
+USBProfile current_usb_profile = PROFILE_WORK_SERIAL;
+
+const unsigned long HOLD_TIME_MS = 2000; 
+unsigned long btn_press_start_time = 0;
+bool btn_was_pressed = false;
+
+Preferences prefs;
+WebServer server(80); 
+
+// Local IP endpoints for over-the-wire browser routing
+IPAddress local_IP(192, 168, 7, 1);
+IPAddress gateway(192, 168, 7, 1);
+IPAddress subnet(255, 255, 255, 0);
+
+void apply_hardware_profiles() {
+  uint16_t target_cpi = cpi_presets[active_cpi_idx];
+  uint16_t target_poll = poll_presets[active_poll_idx];
+
+  // --- TODO: Sensor Write Routines ---
+  // 1. Bit-bang target_cpi down your shared-clock SPI bus to PAW3805EK registers
+  // 2. Modify USB bInterval configuration mappings to enforce target_poll speeds
+}
+
+void commit_settings_to_flash() {
+  // Software Value Filtering: Only issue writes if current runtime attributes diverge from flash records
+  bool data_changed = false;
+
+  if (active_cpi_idx != saved_cpi_idx) {
+    saved_cpi_idx = active_cpi_idx;
+    prefs.putInt("cpi_idx", saved_cpi_idx);
+    data_changed = true;
+  }
+  if (active_poll_idx != saved_poll_idx) {
+    saved_poll_idx = active_poll_idx;
+    prefs.putInt("poll_idx", saved_poll_idx);
+    data_changed = true;
+  }
+  if (is_spacemouse_mode != saved_spacemouse_mode) {
+    saved_spacemouse_mode = is_spacemouse_mode;
+    prefs.putBool("space_mode", saved_spacemouse_mode);
+    data_changed = true;
+  }
+
+  if (data_changed) {
+    Serial.println("[NVS] Configuration state modified. Changes successfully written to Flash.");
+  } else {
+    Serial.println("[NVS] Run states match storage bounds. Flash write bypassed to preserve sectors.");
+  }
+}
+
+// --- HTML Configuration Webpage ---
+void handle_root_route() {
+  String html = "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<style>body{font-family:sans-serif; background:#121212; color:#fff; text-align:center; padding:20px;}";
+  html += "select, button{padding:12px; margin:10px; width:80%; max-width:300px; border-radius:6px; border:none; font-size:16px;}";
+  html += ".btn-apply{background:#17a2b8; color:#fff; font-weight:bold; cursor:pointer;}";
+  html += ".btn-save{background:#28a745; color:#fff; font-weight:bold; cursor:pointer;}</style>";
+  html += "<title>Trackball Wired Config</title></head><body>";
+  html += "<h2>Trackball Wired Portal</h2>";
+  html += "<form method='POST'>";
+  
+  // CPI Selector
+  html += "<label>Resolution (CPI):</label><br><select name='cpi'>";
+  for(int i=0; i<4; i++) {
+    html += "<option value='" + String(i) + "'" + (i == active_cpi_idx ? " selected" : "") + ">" + String(cpi_presets[i]) + " CPI</option>";
+  }
+  html += "</select><br><br>";
+
+  // Polling Selector
+  html += "<label>Polling Rate:</label><br><select name='poll'>";
+  for(int i=0; i<3; i++) {
+    html += "<option value='" + String(i) + "'" + (i == active_poll_idx ? " selected" : "") + ">" + String(poll_presets[i]) + " Hz</option>";
+  }
+  html += "</select><br><br>";
+
+  // SpaceMouse Selector
+  html += "<label>Multi-Axis Mode:</label><br><select name='spacemouse'>";
+  html += "<option value='0'" + String(!is_spacemouse_mode ? " selected" : "") + ">Standard Mouse</option>";
+  html += "<option value='1'" + String(is_spacemouse_mode ? " selected" : "") + ">SpaceMouse Simulation</option>";
+  html += "</select><br><br>";
+
+  html += "<button type='submit' formaction='/apply' class='btn-apply'>Apply & Test (RAM Only)</button><br>";
+  html += "<button type='submit' formaction='/save' class='btn-save'>Save Permanently (Flash)</button>";
+  html += "</form></body></html>";
+  server.send(200, "text/html", html);
+}
+
+void handle_web_apply() {
+  if (server.hasArg("cpi") && server.hasArg("poll") && server.hasArg("spacemouse")) {
+    active_cpi_idx = server.arg("cpi").toInt();
+    active_poll_idx = server.arg("poll").toInt();
+    is_spacemouse_mode = server.arg("spacemouse").toInt() == 1;
+
+    apply_hardware_profiles(); // Execution adjustments in RAM without writing to Flash
+    handle_root_route();       // Reload screen with active properties
+  }
+}
+
+void handle_web_save() {
+  if (server.hasArg("cpi") && server.hasArg("poll") && server.hasArg("spacemouse")) {
+    active_cpi_idx = server.arg("cpi").toInt();
+    active_poll_idx = server.arg("poll").toInt();
+    is_spacemouse_mode = server.arg("spacemouse").toInt() == 1;
+
+    apply_hardware_profiles();
+    commit_settings_to_flash(); // Run matching optimization checks and store variables
+
+    String response = "<html><body><h2>Settings Saved Successfully!</h2><p>Safe in NVS flash. Switch profile button when ready.</p></body></html>";
+    server.send(200, "text/html", response);
+  }
+}
+
+void handle_serial_cli() {
+  if (Serial.available() > 0) {
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+
+    if (command.startsWith("SET_CPI ")) {
+      active_cpi_idx = command.substring(8).toInt();
+      Serial.println(">> Target CPI prepared in RAM.");
+    } 
+    else if (command.equals("APPLY")) {
+      apply_hardware_profiles();
+      Serial.println(">> Profile applied to hardware layers (RAM only).");
+    } 
+    else if (command.equals("SAVE")) {
+      apply_hardware_profiles();
+      commit_settings_to_flash();
+      Serial.println(">> Parameters locked securely to NVS Flash storage.");
+    }
+  }
+}
+
+void switch_usb_stack_runtime(USBProfile target_mode) {
+  USB.end();
+  delay(400); // Disconnect settling pause
+
+  if (target_mode == PROFILE_HOME_RNDIS) {
+    current_usb_profile = PROFILE_HOME_RNDIS;
+    
+    // Mount RNDIS pipelines on-demand
+    Network.config(local_IP, gateway, subnet);
+    Network.begin(); 
+    
+    server.on("/", handle_root_route);
+    server.on("/apply", HTTP_POST, handle_web_apply);
+    server.on("/save", HTTP_POST, handle_web_save);
+    server.begin();
+  } else {
+    current_usb_profile = PROFILE_WORK_SERIAL;
+    
+    // Fallback into safe configuration mappings
+    server.stop();
+    Serial.begin(115200);
+    USB.begin();
+  }
+}
+
+void setup() {
+  // Pull configuration attributes from NVS memory pools
+  prefs.begin("trackball", false);
+  saved_cpi_idx = prefs.getInt("cpi_idx", 1);    
+  saved_poll_idx = prefs.getInt("poll_idx", 1);  
+  saved_spacemouse_mode = prefs.getBool("space_mode", false);
+
+  // Initialize runtime system loops using values pulled from storage
+  active_cpi_idx = saved_cpi_idx;
+  active_poll_idx = saved_poll_idx;
+  is_spacemouse_mode = saved_spacemouse_mode;
+
+  apply_hardware_profiles();
+
+  // Always force standard Profile Work (Daily COM/Mouse Profile) on power-up
+  pinMode(CONFIG_BTN_PIN, INPUT_PULLUP);
+  current_usb_profile = PROFILE_WORK_SERIAL;
+  Serial.begin(115200);
+  USB.begin();
+}
+
+void loop() {
+  unsigned long current_time = millis();
+
+  // --- Dynamic Switch Monitoring Loop ---
+  if (digitalRead(CONFIG_BTN_PIN) == LOW) {
+    if (!btn_was_pressed) {
+      btn_press_start_time = current_time;
+      btn_was_pressed = true;
+    } else if (current_time - btn_press_start_time > HOLD_TIME_MS) {
+      btn_was_pressed = false; 
+      
+      if (current_usb_profile == PROFILE_WORK_SERIAL) {
+        switch_usb_stack_runtime(PROFILE_HOME_RNDIS);
+      } else {
+        switch_usb_stack_runtime(PROFILE_WORK_SERIAL);
+      }
+    }
+  } else {
+    btn_was_pressed = false;
+  }
+
+  // --- Execution Routine Selection Mapping ---
+  if (current_usb_profile == PROFILE_HOME_RNDIS) {
+    server.handleClient();
+  } else {
+    handle_serial_cli();
+  }
+
+  // Pure High-Performance Loop Pipeline
+  run_high_performance_trackball_pipeline();
+}
+
+void run_high_performance_trackball_pipeline() {
+  // Your 1,000 Hz tracking operations run continuously here across both routing modes:
+  // 1. Fetch dual PAW3805EK locations using your shared clock pin (GPIO7)
+  // 2. Decode quadrature state structures on Phase A/B lines for your scroll ring
+  // 3. Assemble and dispatch HID packages over the native USB pipe every 1 ms
+}
+```
+
 ## Sensor Communicatoin
 - PAW3805 uses 3-wires SPI, need bit-banging when code in Arduino.
 - ESP32-S2's default hardware SPI library expects two separate wires for data: MOSI (Master Out, Slave In) and MISO (Master In, Slave Out).
@@ -42,10 +325,10 @@ By placing them precisely 90° apart on the same latitude, the ESP32-S2 firmware
 To make the trackball accurate in a quantitative sense, it needs to map the raw sensor readings to the true 3D angular velocity vector of the ball $\vec{\omega} = [\omega_x, \omega_y, \omega_z]^T$ using a precise kinematic transformation matrix.
 Let's break down the exact mathematics for your specific layout.
 #### 1. Establishing the Coordinate Systems
-1. Global Deck Coordinates (Cartesian coordinate, right handed) :
-   	- X axis: pointing and increasing out towards viewer on horizontal plane.
-   	- Y axis: pointing and increasing to right on horizontal plane.
-   	- Z axis: pointing and increasing up. 
+1. Global Deck Coordinates (Cartesian coordinate, right handed):
+	- X axis: pointing and increasing out towards viewer on horizontal plane.
+	- Y axis: pointing and increasing to right on horizontal plane.
+	- Z axis: pointing and increasing up. 
 	- $+\omega_x$ = Rolling the ball to the left around X-axis (towards 270°E).
 	- $+\omega_y$ = Rolling the ball backward around Y-axis (towards 0°E).
 	- $+\omega_z$ = Twisting the ball counter-clockwise around Z-axis (looking from above).
