@@ -14,8 +14,8 @@ jobs:
           # Replace URL below with actual link;
           # Replace OUT with directory and file name.
           
-          #URL="https://github.com/ogatatsu/PMW3360-Module/raw/master/Datasheets/"
-          #URL+="PMS0058-PMW3360DM-T2QU-DS-R1.50-26092016._20161202173741.pdf"
+          URL="https://github.com/ogatatsu/PMW3360-Module/raw/master/Datasheets/"
+          URL+="PMS0058-PMW3360DM-T2QU-DS-R1.50-26092016._20161202173741.pdf"
           
           OUT="Reference/Sensor Datasheet/PMW3360DM-T2QU-DS-R1.50-26092016.pdf"
           
