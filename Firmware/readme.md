@@ -17,14 +17,18 @@ The ESP32-S2 features a flexible GPIO matrix, which means you can assign any gen
 
 4. Config Trigger Buttons (1 Pin)
 	- Leveraging an extra USB channel to configure instead of hardware buttons.
-	- Implement a trigger button (GPIO2) to switch between two config mode: office and home.
- 	- Office mode leverages CDC-ACM (virtual serial) to avoid security concern.
-  - Home mode implements RNDIS (virtual ethernet) to allow web GUI.
-  - Some config options are DPI (400, 800, 1600, 3000), Polling Rate (125, 250, 500, 1000), Multi-Axis (enable 6DOF control), and to "apply" and "save" the config.
+	- Implement a trigger button (GPIO2) to switch between two config mode: CLI and GUI.
 
 5. Caution
 	- GPIO0 is kept empty: it's wired directly to physical on-board "BOOT" button.
 	- GPIO15 is kept empty: it's tied to onboard blue status LED.
+
+## Configuration Consideration
+- Implement two config mode: CLI and GUI.
+- The CLI mode is for office, leverages CDC-ACM (virtual serial) to avoid security concern. E.g., company computer usually has DLP monitoring that not allow writing access to peripherals. A CLI leveraging serial interface usually acceptable though. 
+- The GUI mode is for home, which implements RNDIS (virtual ethernet) to allow a user friendly web GUI.
+- Some config options include DPI (500, 1000, 1500, 3000), Polling Rate (125, 500, 1000), Multi-Axis (enable 6DOF control), and to "apply" and "save" the config.
+- Compare to most office mouse, 1000 DPI and 125Hz polling rate would be default. Under the hood, 125Hz polling is the ceiling of Low-Speed USB data rate, and 1,000Hz is for Full Speed USB. ESP32-S2 features the built-in USB 2.0 Full-Speed OTG.
 
 ## USB Interface
 Implement the trackball as a 3-channel composite device:
@@ -34,7 +38,6 @@ Implement the trackball as a 3-channel composite device:
 	- In Office mode (USB CDC-ACM / Virtual COM Port): A standard serial communications port used to host the text-based configuration menu.
 	- In Home mode (USB RNDIS): The virtual network interface initializes instantly over the wire. You open your browser, navigate to your crisp local dashboard page (e.g., http://192.168.7.1), click your settings, and save.
 	- In both case, implement "apply" to test in RAM, and include <Preferences.h> in Arduino IDE to save the config in flash storage.
-
 ```
 #include "USB.h"
 #include "USBHIDMouse.h" // Replace with your compound HID/SpaceMouse stack down the line
@@ -48,7 +51,7 @@ const int CONFIG_BTN_PIN = 2; // Switched to GPIO2 as requested
 
 // --- Profile Presets ---
 const uint16_t cpi_presets[] = {500, 1000, 1500, 3000}; // Added 1000 CPI
-const uint16_t poll_presets[] = {125, 500, 1000};      // Added 250 Hz
+const uint16_t poll_presets[] = {125, 500, 1000};
 const int NUM_CPI = sizeof(cpi_presets) / sizeof(cpi_presets[0]);
 const int NUM_POLL = sizeof(poll_presets) / sizeof(poll_presets[0]);
 
@@ -342,6 +345,16 @@ void run_high_performance_trackball_pipeline() {
 - ESP32-S2's default hardware SPI library expects two separate wires for data: MOSI (Master Out, Slave In) and MISO (Master In, Slave Out).
 - The PAW3805 only has one data wire: SDIO. To talk to the sensor, ESP32-S2 must use the exact same pin to send commands (Output mode) and then quickly switch that pin to receive data (Input mode).
 - Software SPI (Bit-Banging): Do not use the ESP32-S2's built-in SPI hardware engines at all. Instead, pick any 4 random digital pins (e.g., Pins 5, 6, 7, 8) and manually turn them HIGH and LOW using fast code (digitalWrite or direct register writes).
+
+## PAW3805 Register
+| Address | Register (Read/Write) | Defult Value | Notes |
+| -- | -- | -- | -- |
+| 0x0D | CPI X (RW) | 0x27 -> 1014 CPI | About 27 per step.<br />500(513)->0x13(19), 1000(1026)->0x26(38),<br />1500(1512)->0x38(56), 3000(3024)->0x70(112) |
+| 0x0E | CPI Y (RW) | 0x2B -> 1118 CPI | About 24.5 per step.<br />500(514.5)->0x15(21), 1000(1029)->0x2A(42),<br />1500(1519)->0x3E(62), 3000(3013.5)->0x7B(123) |
+| 0x11 | X Hi (RW) | - | High byte of 16-bit X movement. |
+| 0x03 | X Lo (RW) | - | Low byte of X movement. |
+| 0x12 | Y Hi (RW) | - | High byte of 16-bit Y movement. |
+| 0x04 | Y Lo (RW) | - | Low byte of Y movement. |
 
 ## Geometry Kinematics
 ### A. Qualitative Analysis
