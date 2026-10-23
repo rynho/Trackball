@@ -17,3 +17,7 @@ The design mainly borrow from Kensington Orbit, Export, Slimblade Pro, Ploopy, E
 | Bearing hole | 3.1*1.8mm <br /> 23°S; 0°E(wrist), 120°E, 120°W. |
 | Sensor hole | 4.5*8mm(?) <br /> 60°S; 60°E, 150°E. |
 
+### 3D Model:
+https://www.tinkercad.com/things/81IQH6kZxDC-tb-assemblyv2
+
+<img width="650" height="415" alt="image" src="https://github.com/user-attachments/assets/b505a66f-973d-4615-a3f1-9863e8218e8e" />
