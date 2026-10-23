@@ -1,27 +1,33 @@
 ## MCU Pin Mapping
 1. Dual PAW3805EK Sensors (5 Pins)
 The ESP32-S2 features a flexible GPIO matrix, which means you can assign any general-purpose pin to act as your SPI lines.
-	- Shared SCLK: GPIO7 (Default hardware SPI clock)
-	- Sensor 1 (Trackball Ball): GPIO11 (SDIO_1) + GPIO12 (CS_1)
-	- Sensor 2 (Scroll Ring Backing): GPIO9 (SDIO_2) + GPIO10 (CS_2)
+	- Shared SCLK: GPIO 9 (Default hardware SPI clock)
+ 	- Shared QB (MFIO): GPIO 10
+	- Sensor 1 (Trackball Ball): GPIO 11 (CS_1) + GPIO 12 (SDIO_1)
+	- Sensor 2 (Scroll Ring Backing): GPIO 13 (CS_2) + GPIO 14 (SDIO_2)
 
 2. Primary Mouse Switches (4 Pins)
-	- Left Click: GPIO33
-	- Right Click: GPIO34
-	- Middle/Scroll Click: GPIO35
-	- Forward/Back Macro: GPIO36
+	- Left Click: GPIO 1
+	- Right Click: GPIO 2
+	- Middle/Scroll Click: GPIO 3
+	- Forward/Back Macro: GPIO 4
 
 3. Optical Scroll Ring Interrupters (2 Pins)
-	- Phase A (Channel 1): GPIO13
-	- Phase B (Channel 2): GPIO14
+	- Phase A (Channel 1): GPIO 5
+	- Phase B (Channel 2): GPIO 6
 
-4. Config Trigger Buttons (1 Pin)
+4. Config Trigger Buttons (1 Pin? or leave CLI as default?)
 	- Leveraging an extra USB channel to configure instead of hardware buttons.
 	- Implement a trigger button (GPIO2) to switch between two config mode: CLI and GUI.
 
 5. Caution
-	- GPIO0 is kept empty: it's wired directly to physical on-board "BOOT" button.
-	- GPIO15 is kept empty: it's tied to onboard blue status LED.
+	- GPIO 0 is kept empty: it's wired directly to physical on-board "BOOT" button.
+	- GPIO 15 is kept empty: it's tied to onboard blue status LED.
+	- GPIO 18, 19, 20, 26: These are typically tied to the internal SPI flash/PSRAM.
+ 	- GPIO 21-32 (PSRAM/Flash): Occupied by the S2 Mini 2MB PSRAM and 4MB Flash.
+	- GPIO 39: JTAG pin, avoid if doing JTAG debugging.
+ 	- GPIO 45, 46: Strapping pins for VDD_SPI voltage and boot log printing. Avoid using these for critical sensor lines.
+
 
 ## Configuration Consideration
 - Implement two config mode: CLI and GUI.
