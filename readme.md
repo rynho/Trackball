@@ -13,9 +13,9 @@ The design mainly borrow from Kensington Orbit, Export, Slimblade Pro, Ploopy, E
 ### Dimension:
 | Item | Description |
 | -- | -- |
-| Socket | inner 59.6mm, outer 66mm <br /> 180° semi-sphere. |
-| Bearing hole | 3.1*1.8mm <br /> 23°S; 0°E(wrist), 120°E, 120°W. |
-| Sensor hole | 4.5*8mm(?) <br /> 60°S; 60°E, 150°E. |
+| Socket | inner diameter 59.6mm, outer 66mm <br /> 180° semi-sphere.|
+| Bearing hole | 3.1*1.8mm <br /> Latitude -23°; Longitude 0°(wrist), 120°, 240°. |
+| Sensor hole | 5*8mm <br /> Latitude -60°; Longitude 90°, 270°. |
 
 ### 3D Model:
 https://www.tinkercad.com/things/81IQH6kZxDC-tb-assemblyv2
