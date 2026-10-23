@@ -1,4 +1,4 @@
-Design a wired trackball featuring twist scroll and 3D rotation.
+Design a wired trackball featuring dedicated scroll ring, as well as twist scroll and 3D rotation.
 The design mainly borrow from Kensington Orbit, Export, Slimblade Pro, Ploopy, Efog Endgame, and Rotatrix.
 
 ### Main specifications:
