@@ -1,24 +1,26 @@
 ## MCU Pin Mapping
-1. Dual PAW3805EK Sensors (5 Pins)
+1. Dual PAW3805EK Sensors (6 Pins)
 The ESP32-S2 features a flexible GPIO matrix, which means you can assign any general-purpose pin to act as your SPI lines.
-	- Shared SCLK: GPIO 9 (Default hardware SPI clock)
- 	- Shared QB (MFIO): GPIO 10
-	- Sensor 1 (Trackball Ball): GPIO 11 (CS_1) + GPIO 12 (SDIO_1)
-	- Sensor 2 (Scroll Ring Backing): GPIO 13 (CS_2) + GPIO 14 (SDIO_2)
+	- Shared SCLK: GPIO 3
+ 	- Shared QB (MFIO): GPIO 5
+	- CS Sensor A: GPIO 7
+	- CS Sensor B: GPIO 9
+	- SDIO Sensor A: GPIO 11
+	- SDIO Sensor B: GPIO 12
 
-2. Primary Mouse Switches (4 Pins)
-	- Left Click: GPIO 1
-	- Right Click: GPIO 2
-	- Middle/Scroll Click: GPIO 3
-	- Forward/Back Macro: GPIO 4
+2. Optical Scroll Ring Interrupters (2 Pins)
+	- Phase A (Channel 1): GPIO 16
+	- Phase B (Channel 2): GPIO 18
 
-3. Optical Scroll Ring Interrupters (2 Pins)
-	- Phase A (Channel 1): GPIO 5
-	- Phase B (Channel 2): GPIO 6
+3. Primary Mouse Switches (4 Pins)
+	- Left Click: GPIO 33
+	- Right Click: GPIO 35
+	- Middle/Scroll Click: GPIO 37
+	- Forward/Back Macro: GPIO 39
 
-4. Config Trigger Buttons (1 Pin? or leave CLI as default?)
+4. Config
 	- Leveraging an extra USB channel to configure instead of hardware buttons.
-	- Implement a trigger button (GPIO2) to switch between two config mode: CLI and GUI.
+	- Every boot default to CLI mode, use command to switch GUI.
 
 5. Caution
 	- GPIO 0 is kept empty: it's wired directly to physical on-board "BOOT" button.
