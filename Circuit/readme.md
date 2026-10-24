@@ -8,4 +8,5 @@ https://www.digikey.ca/en/schemeit/project/detail/0aeaac27dc244cbb974cf7c8d57bb9
 Leveraging pair cable with JST 1.2mm connectors to improve maintainability.
 
 Rearranged wiring scheme with JST connectors:
-<img width="851" height="856" alt="Scheme-it-export-Trackball-2026-10-24-00-44" src="https://github.com/user-attachments/assets/56ed3181-ca68-473d-92f9-f3e628678981" />
+<img width="851" height="846" alt="Scheme-it-export-Trackball-2026-10-24-00-51" src="https://github.com/user-attachments/assets/2d4c9499-bf34-4af0-9a74-e029ec599e75" />
+
