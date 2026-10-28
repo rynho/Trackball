@@ -17,6 +17,11 @@ The design mainly borrow from Kensington Orbit, Export, Slimblade Pro, Ploopy, E
 | Bearing hole | 3.1*1.8mm <br /> Latitude -23°; Longitude 0°(wrist), 120°, 240°. |
 | Sensor hole | 5*8mm <br /> Latitude -60°; Longitude 90°, 270°. |
 
+### Reference models:
+Expert: 153 x 125 x 70, Ball: 55mm
+Orbit:  203 x 152 x 51, Ball: 40mm
+Endgame: 102 x 91 x 24, Ball: 51 - 55mm
+
 ### 3D Model:
 https://www.tinkercad.com/things/81IQH6kZxDC-tb-assemblyv2
 
