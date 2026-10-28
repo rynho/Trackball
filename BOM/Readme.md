@@ -5,7 +5,7 @@
 |-|-|-|
 | Sensor board | 24.70 | 17.30 |
 | Sensor | 10.70 | 9.80 |
-| Sensor on board | 11.00 | 3.75 |
+| Sensor on board | 11.00 (3.00 on right) | 3.75 (3.75 on top) |
 | Focal center on chip | 5.20 | 4.90 |
 | Focal center on board | 16.20 | 8.65 |
 
