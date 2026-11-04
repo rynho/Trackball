@@ -23,6 +23,6 @@ The design mainly borrow from Kensington Orbit, Export, Slimblade Pro, Ploopy, E
 - Efog Endgame: 102 x 91 x 24, Ball: 51 - 55mm
 
 ### 3D Model:
-https://www.tinkercad.com/things/81IQH6kZxDC-tb-assemblyv2
+[https://www.tinkercad.com/things/2Ji6tCm6QkG-tb-assemblyv3](https://www.tinkercad.com/things/2Ji6tCm6QkG-tb-assemblyv3)
 
-<img width="650" height="415" alt="image" src="https://github.com/user-attachments/assets/b505a66f-973d-4615-a3f1-9863e8218e8e" />
+<img width="653" height="529" alt="image" src="https://github.com/user-attachments/assets/eefea7bc-f311-4513-88e1-87de7a3b26d9" />
