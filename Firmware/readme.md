@@ -367,9 +367,9 @@ void run_high_performance_trackball_pipeline() {
 ## Geometry Kinematics
 ### A. Qualitative Analysis
 #### Movement 1: Pure Twist (Z-Axis Rotation)
-Imagine twisting the ball clockwise (spinning it like a top).
+Imagine twisting the ball counter-clockwise (spinning it like a top).
 - Because both sensors are sitting at the exact same distance from the equator (60°S), the ball's surface slides sideways over both windows at the exact same speed.
-- The surface moves left-to-right past Sensor 1 (90°W) and Sensor 2 (90°E).
+- The surface moves right-to-left past Sensor 1 (90°W) and Sensor 2 (90°E).
 - The Math: Both sensors register a pure horizontal shift in their local X-axes:\
   $\Delta X_1=\Delta X_2$
   
@@ -401,6 +401,72 @@ By placing them precisely 180° apart on the same latitude, the ESP32-S2 firmwar
 
 
 ### B. Quantitative Calculation
+
+
+
+In your specific setup, the two sensors are orthogonal in terms of longitude (90° apart) but reside on the same latitude circle (\(60^{\circ }\text{\ South}\)). Here is the mathematical breakdown of how the trackball's rotation translates into sensor readings.
+
+1. Geometric Setup & Sensor Coordinates
+
+Let the trackball be a sphere of radius \(R\) centered at the origin \((0,0,0)\).
+• Latitude (\(\phi \)): \(-60^{\circ }\) (or \(\phi = -c\), where \(c = \frac{\pi}{3}\) radians).
+• Longitude (\(\lambda \)): Sensor 1 is at \(\lambda_1 = -90^\circ\) (\(-\frac{\pi }{2}\)), and Sensor 2 is at \(\lambda_2 = +90^\circ\) (\(+\frac{\pi }{2}\)).
+Using standard spherical-to-Cartesian coordinates (where \(+z\) is North, \(+x\) is \(0^{\circ }\) Longitude, \(+y\) is \(90^{\circ }\) Longitude):
+\(\mathbf{P}=\left[\begin{matrix}R\cos \phi \cos \lambda \\ R\cos \phi \sin \lambda \\ R\sin \phi \end{matrix}\right]\)
+Substituting \(\phi = -60^\circ\) (\(\cos(-60^\circ) = 0.5\), \(\sin(-60^\circ) = -\frac{\sqrt{3}}{2}\)):
+• Sensor 1 Position (\(\mathbf{P}_{1}\)): At \(\lambda = -90^\circ \implies \mathbf{P}_1 = \begin{bmatrix} 0 \\ -0.5R \\ -\frac{\sqrt{3}}{2}R \end{bmatrix}\)
+• Sensor 2 Position (\(\mathbf{P}_{2}\)): At \(\lambda = +90^\circ \implies \mathbf{P}_2 = \begin{bmatrix} 0 \\ 0.5R \\ -\frac{\sqrt{3}}{2}R \end{bmatrix}\)
+
+2. Local Sensor Coordinate Frames (Surface Kinematics)
+
+An optical sensor tracks local surface displacement \((\Delta u, \Delta v)\), which corresponds to orthogonal tangent vectors on the sphere's surface.
+• Let \(\^{\mathbf{u}}\) be the local East vector (direction of increasing longitude \(\lambda \)).
+• Let \(\^{\mathbf{v}}\) be the local North vector (direction of increasing latitude \(\phi \)).
+The unit tangent vectors at any point are derived by differentiating \(\mathbf{P}\):
+\(\^{\mathbf{u}}=\left[\begin{matrix}-\sin \lambda \\ \cos \lambda \\ 0\end{matrix}\right],\quad \^{\mathbf{v}}=\left[\begin{matrix}-\sin \phi \cos \lambda \\ -\sin \phi \sin \lambda \\ \cos \phi \end{matrix}\right]\)
+Evaluating these at each sensor location yields their local tracking axes:
+
+Axis	Sensor 1 (\(\lambda = -90^\circ, \phi = -60^\circ\))	Sensor 2 (\(\lambda = +90^\circ, \phi = -60^\circ\))
+\(\^{\mathbf{u}}\) (Horizontal/East)	\(\left[\begin{matrix}1\\ 0\\ 0\end{matrix}\right]\)	\(\left[\begin{matrix}-1\\ 0\\ 0\end{matrix}\right]\)
+\(\^{\mathbf{v}}\) (Vertical/North)	\(\left[\begin{matrix}0\\ -\frac{\sqrt{3}}{2}\\ 0.5\end{matrix}\right]\)	\(\left[\begin{matrix}0\\ \frac{\sqrt{3}}{2}\\ 0.5\end{matrix}\right]\)
+
+
+3. Kinematic Equations (Velocity Mapping)
+
+When the user rolls the ball, it rotates with an angular velocity vector \(\boldsymbol{\omega} = [\omega_x, \omega_y, \omega_z]^T\).
+The linear velocity \(\mathbf{V}\) of the sphere's surface underneath a fixed sensor at position \(\mathbf{P}\) is given by:
+\(\mathbf{V}=\mathbfit{\omega }\times \mathbf{P}\)
+The 2D output of each sensor \((U, V)\) matches the projection of this linear surface velocity onto the sensor's local \(\^{\mathbf{u}}\) and \(\^{\mathbf{v}}\) axes:
+\(U=\mathbf{V}\cdot \^{\mathbf{u}},\quad V=\mathbf{V}\cdot \^{\mathbf{v}}\)
+By calculating the cross products \((\boldsymbol{\omega} \times \mathbf{P}_i)\) and projecting them onto each sensor's coordinate system, we establish the forward kinematics:
+
+Sensor 1 Outputs:
+
+• \(U_1 = -0.5 R \, \omega_z + \frac{\sqrt{3}}{2} R \, \omega_y\)
+• \(V_1 = 0.5 R \, \omega_x\)
+
+Sensor 2 Outputs:
+
+• \(U_2 = -0.5 R \, \omega_z - \frac{\sqrt{3}}{2} R \, \omega_y\)
+• \(V_2 = -0.5 R \, \omega_x\)
+
+4. Key Kinematic Insights & Trade-offs
+
+• The Redundancy/Symmetry Constraint: Note that \(V_1 = -V_2\). Because both sensors sit on the exact same latitude line symmetrically opposite each other, both vertical sensor tracks measure the exact same physical rotation channel (\(\omega _{x}\)).
+• The "Blind" Rotation Component: Notice that neither \(V_{1}\) nor \(V_{2}\) contains terms for \(\omega _{y}\) or \(\omega _{z}\). If a user tries to isolate \(\omega _{y}\) or \(\omega _{z}\), it can only be extracted by mathematically decoupling the \(U_{1}\) and \(U_{2}\) signals.
+• Solving for 3D Angular Velocity: If you are trying to reconstruct full 3D rotation from these 4 output channels, you can invert the system using the \(U\) channels and an average of the \(V\) channels:
+\(\omega _{x}=\frac{V_{1}-V_{2}}{2R\,(0.5)}=\frac{V_{1}-V_{2}}{R}\)
+\(\omega _{y}=\frac{U_{1}-U_{2}}{\sqrt{3}R}\)
+\(\omega _{z}=-\frac{U_{1}+U_{2}}{R}\)
+
+5. Singularity Warning
+
+Because \(V_{1}\) and \(V_{2}\) are perfectly linearly dependent (\(V_1 + V_2 = 0\)), your actual matrix rank for tracking is 3, not 4. While this allows you to solve for full 3D rotation \((\omega_x, \omega_y, \omega_z)\), you have zero tracking redundancy for \(\omega _{y}\) and \(\omega _{z}\). If Sensor 1's horizontal tracker slips, \(\omega _{y}\) and \(\omega _{z}\) calculations will fail completely.
+
+
+=============
+## Older version start
+
 To make the trackball accurate in a quantitative sense, it needs to map the raw sensor readings to the true 3D angular velocity vector of the ball $\vec{\omega} = [\omega_x, \omega_y, \omega_z]^T$ using a precise kinematic transformation matrix.
 Let's break down the exact mathematics for your specific layout.
 #### 1. Establishing the Coordinate Systems
@@ -408,19 +474,19 @@ Let's break down the exact mathematics for your specific layout.
 	- X axis: pointing and increasing out towards viewer on horizontal plane.
 	- Y axis: pointing and increasing to right on horizontal plane.
 	- Z axis: pointing and increasing up. 
-	- $+\omega_x$ = Rolling the ball to the left around X-axis (towards 270°E).
+	- $+\omega_x$ = Rolling the ball to the left around X-axis (towards 90°W).
 	- $+\omega_y$ = Rolling the ball backward around Y-axis (towards 0°E).
 	- $+\omega_z$ = Twisting the ball counter-clockwise around Z-axis (looking from above).
 	- Equator is latitude 0°, increasing upward, North pole is 90°, South pole is -90°.
 	- X axis direction is longitude 0° (Prime Meridian), towards wrist.
 3. Sensor Positions on a Unit Sphere $(R=1)$:
 	- Latitude $\theta$ = -60° (or 60°S).
-	- Sensor 1 Longitude $\phi_1$ = 60°.
-	- Sensor 2 Longitude $\phi_2$ = 150°.
+	- Sensor 1 Longitude $\phi_1$ = -90°.
+	- Sensor 2 Longitude $\phi_2$ = 90°.
 4. Sensor Local Axes:
 	- Assume the sensor is aligned flat against the ball's surface.
-	- Local $\Delta X$ points along the line of latitude (Eastward).
-	- Local $\Delta Y$ points along the line of longitude (Northward, toward the equator).
+	- Local $\Delta X$ points along the line of latitude, increasing right-to-left (i.e., $+\omega_z$ direction).
+	- Local $\Delta Y$ points along the line of longitude, increasing bottom-up.
 
 #### 2. The Exact Kinematic Equations
 When the ball rotates with an angular velocity $[\omega_x$, $\omega_y$, $\omega_z]$, the surface velocity seen by a sensor at latitude $\theta$ and longitude $\phi$ is derived from the cross product of the rotation vector and the sensor's position vector.
@@ -468,6 +534,8 @@ void calculate_global_movement(float dx1, float dy1, float dx2, float dy2,
     *out_wz = - dx1 - dx2 - scale_dy1 + scale_dy2;
 }
 ```
+## Older version end
+======================
 
 ## Dedicated Scroll Wheel
 There will be an extra dedicated scroll wheel similar to Kensington Orbit or Expert. It will leverage two optical interrupter to encode the rotation, based on quadrature encoding principle.  While the two receiver channels' waveform should be digitally 90° phase apart ideally, it works as far as channel B's rising edge dropped in channel A's high state.
