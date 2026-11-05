@@ -53,12 +53,12 @@ Let the trackball be a sphere of radius R centered at the origin (0,0,0).
 - Longitude $\lambda$: Sensor 1 is at $\lambda_1$ = -90° ($-\frac{\pi}{2}$), and Sensor 2 is at $\lambda_2$ = +90° ($+\frac{\pi}{2}$).
 
 Using standard spherical-to-Cartesian coordinates where $+z$ is North, $+x$ is 0° Longitude, $+y$ is 90° Longitude:\
-$`\mathbf{P} = \begin{bmatrix} R\cos \phi \cos \lambda \\ R\cos \phi \sin \lambda \\ R\sin \phi \end{bmatrix}`$
+$`\mathbf{P} = \begin{bmatrix} R \cdot \cos\phi \cdot \cos\lambda \\ R \cdot \cos\phi \cdot \sin\lambda \\ R \cdot \sin\phi \end{bmatrix}`$
 
 Substituting $\phi$ = -60° ($\cos$ -60° = 0.5, $\sin$ -60° = $-\frac{\sqrt{3}}{2}$):
-- Sensor 1 Position $\mathbf{P}_{1}$: At\
+- Sensor 1 Position $\mathbf{P}_1$: At\
 $`\lambda = -90^\circ \implies \mathbf{P}_1 = \begin{bmatrix} 0 \\ -0.5R \\ -\frac{\sqrt{3}}{2}R \end{bmatrix}`$
-- Sensor 2 Position $\mathbf{P}_{2}$: At\
+- Sensor 2 Position $\mathbf{P}_2$: At\
 $`\lambda = +90^\circ \implies \mathbf{P}_2 = \begin{bmatrix} 0 \\ 0.5R \\ -\frac{\sqrt{3}}{2}R \end{bmatrix}`$
 
 #### 2. Local Sensor Coordinate Frames (Surface Kinematics)
@@ -66,7 +66,7 @@ An optical sensor tracks local surface displacement $\Delta u, \Delta v$, which 
 - Let $\mathbf{u}$ be the local East vector direction of increasing longitude $\lambda$.
 - Let $\mathbf{v}$ be the local North vector direction of increasing latitude $\phi$.
 The unit tangent vectors at any point are derived by differentiating $\mathbf{P}$:\
-$`\mathbf{u}=\begin{bmatrix}-\sin \lambda \\ \cos \lambda \\ 0\end{bmatrix},\quad \mathbf{v}=\begin{bmatrix}-\sin \phi \cos \lambda \\ -\sin \phi \sin \lambda \\ \cos \phi \end{bmatrix}`$
+$`\mathbf{u}=\begin{bmatrix}-\sin \lambda \\ \cos \lambda \\ 0\end{bmatrix},\quad \mathbf{v}=\begin{bmatrix} -\sin\phi \cdot \cos\lambda \\ -\sin\phi \cdot \sin\lambda \\ \cos\phi \end{bmatrix}`$
 
 Evaluating these at each sensor location yields their local tracking axes:
 | Axis | Sensor 1 $\lambda$ = -90°, $\phi$ = -60°	| Sensor 2 $\lambda$ = +90°, $\phi$ = -60° |
