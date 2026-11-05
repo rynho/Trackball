@@ -52,7 +52,7 @@ Let the trackball be a sphere of radius R centered at the origin (0,0,0).
 - Latitude $\phi$: -60° (or $\phi$ = -c, where c = $\frac{\pi}{3}$ radians).
 - Longitude $\lambda$: Sensor 1 is at $\lambda_1$ = -90° ($-\frac{\pi}{2}$), and Sensor 2 is at $\lambda_2$ = +90° ($+\frac{\pi}{2}$).
 
-Using standard spherical-to-Cartesian coordinates where $+z$ is North, $+x$ is 0° Longitude, $+y$ is 90° Longitude:
+Using standard spherical-to-Cartesian coordinates where $+z$ is North, $+x$ is 0° Longitude, $+y$ is 90° Longitude:\
 $`\mathbf{P} = \begin{bmatrix} R\cos \phi \cos \lambda \\ R\cos \phi \sin \lambda \\ R\sin \phi \end{bmatrix}`$
 
 Substituting $\phi$ = -60° ($\cos$ -60° = 0.5, $\sin$ -60° = $-\frac{\sqrt{3}}{2}$):
