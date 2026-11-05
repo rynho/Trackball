@@ -43,7 +43,7 @@ Let the trackball be a sphere of radius R centered at the origin (0,0,0).
 - Longitude $\lambda$: Sensor 1 is at $\lambda_1$ = -90° ($-\frac{\pi}{2}$), and Sensor 2 is at $\lambda_2$ = +90° ($+\frac{\pi}{2}$).
 
 
-
+---
 ### Configuration two:
 The two sensors are 180° apart, reside on the same latitude circle 60° South. Here is the mathematical breakdown of how the trackball's rotation translates into sensor readings.
 
@@ -86,25 +86,25 @@ $U=\mathbf{V}\cdot \mathbf{u},\quad V=\mathbf{V}\cdot \mathbf{v}$
 By calculating the cross products $\boldsymbol{\omega} \times \mathbf{P}_i$ and projecting them onto each sensor's coordinate system, we establish the forward kinematics:
 
 Sensor 1 Outputs:
-- $U_1 = -0.5 R , \omega_z + \frac{\sqrt{3}}{2} R , \omega_y$
-- $V_1 = 0.5 R , \omega_x$
+- $U_1 = -0.5 R \cdot \omega_z + \frac{\sqrt{3}}{2} R \cdot \omega_y$
+- $V_1 = 0.5 R \cdot \omega_x$
 
 Sensor 2 Outputs:
-- $U_2 = -0.5 R \, \omega_z - \frac{\sqrt{3}}{2} R \, \omega_y$
-- $V_2 = -0.5 R \, \omega_x$
+- $U_2 = -0.5 R \cdot \omega_z - \frac{\sqrt{3}}{2} R \cdot \omega_y$
+- $V_2 = -0.5 R \cdot \omega_x$
 
 #### 4. Key Kinematic Insights & Trade-offs
 - The Redundancy/Symmetry Constraint: Note that $V_1 = -V_2$. Because both sensors sit on the exact same latitude line symmetrically opposite each other, both vertical sensor tracks measure the exact same physical rotation channel $\omega_x$.
 - The "Blind" Rotation Component: Notice that neither $V_1$ nor $V_2$ contains terms for $\omega_y$ or $\omega_z$. If a user tries to isolate $\omega_y$ or $\omega_z$, it can only be extracted by mathematically decoupling the $U_1$ and $U_2$ signals.
 - Solving for 3D Angular Velocity: If you are trying to reconstruct full 3D rotation from these 4 output channels, you can invert the system using the $U$ channels and an average of the $V$ channels:\
-$\omega_x=\frac{V_1-V_2}{2R,0.5}=\frac{V_1-V_2}{R}$\
-$\omega_y=\frac{U_{1}-U_{2}}{\sqrt{3}R}$\
-$\omega_z=-\frac{U_{1}+U_{2}}{R}$
+$\omega_x=\frac{V_1-V_2}{2R \cdot 0.5}=\frac{V_1-V_2}{R}$\
+$\omega_y=\frac{U_1-U_2}{\sqrt{3}R}$\
+$\omega_z=-\frac{U_1+U_2}{R}$
 
 #### 5. Singularity Warning
 Because $V_1$ and $V_2$ are perfectly linearly dependent $V_1 + V_2 = 0$, your actual matrix rank for tracking is 3, not 4. While this allows you to solve for full 3D rotation $\omega_x, \omega_y, \omega_z$, you have zero tracking redundancy for $\omega_y$ and $\omega_z$. If Sensor 1's horizontal tracker slips, $\omega_y$ and $\omega_z$ calculations will fail completely.
 
-
+---
 ### Configuration Three: 
 The two sensors are orthogonal in terms of longitude (90° apart), reside on the same latitude circle 60° South. Here is the mathematical breakdown of how the trackball's rotation translates into sensor readings.
 
@@ -175,5 +175,3 @@ void calculate_global_movement(float dx1, float dy1, float dx2, float dy2,
     *out_wz = - dx1 - dx2 - scale_dy1 + scale_dy2;
 }
 ```
-## Older version end
-======================
