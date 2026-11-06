@@ -364,6 +364,52 @@ void run_high_performance_trackball_pipeline() {
 | 0x12 | Y Hi (RW) | - | High byte of 16-bit Y movement. |
 | 0x04 | Y Lo (RW) | - | Low byte of Y movement. |
 
+## Motion Sensor
+The Optimal Least-Squares Estimation\
+$\omega_x = \frac{1}{2}(S_{1y}-S_{2y})$
+$\omega_y = \frac{1}{\sqrt{2}}(S_{1x}-S_{2x})$
+$\omega_z = \frac{1}{\sqrt{2}}(S_{1x}+S_{2x})$
+
+```
+// Define the geometric transformation constant
+const float SQRT2 = 1.4142135624f; 
+void calculate_global_movement(float dx1, float dy1, float dx2, float dy2, 
+                                float &out_wx, float &out_wy, float &out_wz) {
+    out_wx = dy1 - dy2;
+    out_wy = SQRT2 * (dx1 - dx2);
+    out_wz = SQRT2 * (dx1 + dx2);
+}
+
+void setup() {
+    Serial.begin(115200);
+}
+
+void loop() {
+    // 2. Read your raw sensor delta accumulations
+    float s1_dx = 12.0f; // Example values from your sensor polling logic
+    float s1_dy = -4.0f;
+    float s2_dx = -8.0f;
+    float s2_dy = 6.0f;
+
+    // 3. Declare standard variables to hold the outputs
+    float wx = 0.0f;
+    float wy = 0.0f;
+    float wz = 0.0f;
+
+    // 4. Call the function naturally! 
+    // Behind the scenes, the function writes directly to wx, wy, and wz.
+    calculate_global_movement(s1_dx, s1_dy, s2_dx, s2_dy, wx, wy, wz);
+
+    // 5. Use your calculated vectors
+    Serial.print("Global WX: "); Serial.println(wx);
+    Serial.print("Global WY: "); Serial.println(wy);
+    Serial.print("Global WZ: "); Serial.println(wz);
+
+    delay(10); // Standard polling delay
+}
+```
+
+
 ## Dedicated Scroll Wheel
 There will be an extra dedicated scroll wheel similar to Kensington Orbit or Expert. It will leverage two optical interrupter to encode the rotation, based on quadrature encoding principle.  While the two receiver channels' waveform should be digitally 90° phase apart ideally, it works as far as channel B's rising edge dropped in channel A's high state.
 ```
