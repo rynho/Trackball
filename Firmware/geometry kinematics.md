@@ -37,11 +37,107 @@ By placing them precisely 180° apart on the same latitude, the ESP32-S2 firmwar
 ### Configuration One:
 The two sensors are 180° apart, reside on the same latitude circle 45° South.  They are globally orthogonal on two perpendicular global radius line.  Here is the mathematical breakdown of how the trackball's rotation translates into sensor readings.
 
-#### 1. Geometric Setup & Sensor Coordinates
-Let the trackball be a sphere of radius R centered at the origin (0,0,0).
-- Latitude $\phi$: -45° (or $\phi$ = -c, where c = $\frac{\pi}{4}$ radians).
-- Longitude $\lambda$: Sensor 1 is at $\lambda_1$ = -90° ($-\frac{\pi}{2}$), and Sensor 2 is at $\lambda_2$ = +90° ($+\frac{\pi}{2}$).
+To analyze the kinematics of a dual-sensor trackball, we model the ball as a perfect sphere of radius $R$ rotating about its center. Optical sensors on a trackball read surface movement ($dx, dy$) along their local tangential axes, which directly correspond to the linear velocity vectors of the sphere's surface at the sensor locations.
 
+#### 1. Geometric Setup & Sensor Positions
+Let the trackball center be at the origin $(0,0,0)$ in a standard right-handed 3D Cartesian coordinate system:
+- $z$-axis: Points towards the North Pole ($+z$).
+- $x$-axis: Points towards the Prime Meridian (0° Longitude, $+x$).
+- $y$-axis: Points towards 90° East Longitude ($+y$).
+
+The positions of the two sensors located at Latitude $\phi$ = -45° (45° South) and Longitudes $\theta_1$ = 90° and $\theta_2$ = -90° are given by conversion from spherical to Cartesian coordinates:\
+$`\mathbf{P}=\begin{bmatrix}R \cdot cos\phi \cdot cos\theta \\ R \cdot cos\phi \cdot sin\theta \\ R \cdot sin\phi \end{bmatrix}`$
+
+Since cos(-45°) = $\frac{1}{\sqrt{2}}$ and sin(-45°) = $-\frac{1}{\sqrt{2}}$:
+- Sensor 1 ($\theta_1$ = 90°):\
+$`\mathbf{P}_1 = \begin{bmatrix} 0 \\ \frac{R}{\sqrt{2}} \\ -\frac{R}{\sqrt{2}} \end{bmatrix}`$
+- Sensor 2 ($\theta_2$ = -90°):\
+$`\mathbf{P}_2 = \begin{bmatrix} 0 \\ -\frac{R}{\sqrt{2}} \\ -\frac{R}{\sqrt{2}} \end{bmatrix}`$
+
+#### 2. Kinematic Relationships
+When the ball rotates with an angular velocity vector $\boldsymbol{\omega} = [\omega_x, \omega_y, \omega_z]^T$, the linear velocity $\mathbf{v}$ at any point $\mathbf{P}$ on its surface is determined by the cross product: $\mathbf{v}=\mathbfit{\omega}\times \mathbf{P}$
+
+Expanding this cross product for both sensors yields their absolute velocity vectors:\
+$`\mathbf{v}_1=\mathbfit{\omega}\times \mathbf{P}_1=\begin{bmatrix}\omega_x\\ \omega_y\\ \omega_z \end{bmatrix} \times \begin{bmatrix}0\\ \frac{R}{\sqrt{2}}\\ -\frac{R}{\sqrt{2}} \end{bmatrix} =\frac{R}{\sqrt{2}} \begin{bmatrix} -\omega_y-\omega_z\\ \omega_x\\ \omega_x \end{bmatrix}`$
+
+$`\mathbf{v}_2=\mathbfit{\omega}\times \mathbf{P}_2=\begin{bmatrix}\omega_x\\ \omega_y\\ \omega_z \end{bmatrix} \times \begin{bmatrix}0\\ -\frac{R}{\sqrt{2}}\\ -\frac{R}{\sqrt{2}} \end{bmatrix} =\frac{R}{\sqrt{2}} \begin{bmatrix} -\omega_y+\omega_z\\ \omega_x\\ -\omega_x \end{bmatrix}`$
+
+#### 3. Local Sensor Frames & Measurements
+An optical sensor cannot measure movement along the normal vector (radial direction into the sphere). It only captures motion along its local tangential surface coordinates ($X_{local}$ aligned along East/West longitude, $Y_{local}$ aligned along North/South latitude).
+
+We define the local unit tangent vectors ($`\hat{\mathbf{u}}_\theta, \hat{\mathbf{u}}_\phi`$) for both positions:\
+$`\hat{\mathbf{u}}_\theta=\begin{bmatrix}-sin\theta \\ cos\theta \\ 0 \end{bmatrix},\quad \hat{\mathbf{u}}_\phi=\begin{bmatrix}-sin\phi \cdot cos\theta \\ -sin\phi \cdot sin\theta \\ cos\phi \end{bmatrix}`$
+
+For Sensor 1 ($\theta = 90°, \phi = -45°$):\
+$`\mathbf{u}_{\theta 1}=\begin{bmatrix} -1\\ 0\\ 0 \end{bmatrix},\quad \mathbf{u}_{\phi 1}=\begin{bmatrix} 0\\ \frac{1}{\sqrt{2}}\\ \frac{1}{\sqrt{2}} \end{bmatrix}`$
+
+The sensor reads outputs $`S_{1x} = \mathbf{v}_1 \cdot \hat{\mathbf{u}}_{\theta 1}`$ and $`S_{1y} = \mathbf{v}_1 \cdot \hat{\mathbf{u}}_{\phi 1}`$:
+- $S_{1x}=\frac{R}{\sqrt{2}}(\omega_y+\omega_z)$
+- $S_{1y}=0+\frac{R}{2}\omega_x+\frac{R}{2}\omega_x=R\omega_x$
+
+For Sensor 2 ($\theta = -90°, \phi = -45°$):\
+$`\mathbf{u}_{\theta 2}=\begin{bmatrix} 1\\ 0\\ 0 \end{bmatrix},\quad \mathbf{u}_{\phi 2}=\begin{bmatrix} 0\\ -\frac{1}{\sqrt{2}}\\ \frac{1}{\sqrt{2}} \end{bmatrix}`$
+
+The sensor reads outputs $`S_{2x} = \mathbf{v}_2 \cdot \hat{\mathbf{u}}_{\theta 2}`$ and $`S_{2y} = \mathbf{v}_2 \cdot \hat{\mathbf{u}}_{\phi 2}`$:
+- $S_{2x}=\frac{R}{\sqrt{2}}(-\omega_y+\omega_z)$
+- $S_{2y}=0-\frac{R}{2}\omega_x-\frac{R}{2}\omega_x=-R\omega_x$
+
+The forward kinematic transformation matrix mapping ball velocity $\mathbfit{\omega}$ to sensor readings $\mathbf{S}$ is:
+$`\begin{bmatrix}S_{1x}\\ S_{1y}\\ S_{2x}\\ S_{2y}\end{bmatrix}=R \begin{bmatrix}0& \frac{1}{\sqrt{2}}& \frac{1}{\sqrt{2}}\\ 1& 0& 0\\ 0& -\frac{1}{\sqrt{2}}& \frac{1}{\sqrt{2}}\\ -1& 0& 0\end{bmatrix} \begin{bmatrix}\omega_x\\ \omega_y\\ \omega_z\end{bmatrix}`$
+
+#### 5. Solving for Angular Velocities
+By taking the sum and difference of the two active horizontal streams, we isolate every axis of rotation:
+- Rotation about the X-axis ($\omega_x$): Measured redundantly by both vertical sensor axes with flipped signs.\
+$\omega_x=\frac{S_{1y}}{R}=-\frac{S_{2y}}{R}$
+- Rotation about the Y-axis ($\omega_y$): Isolated by taking the difference of the horizontal channels.\
+$\omega_y=\frac{1}{\sqrt{2}R}(S_{1x}-S_{2x})$
+- Rotation about the Z-axis ($\omega_z$): Isolated by taking the sum of the horizontal channels.\
+$\omega_z=\frac{1}{\sqrt{2}R}(S_{1x}+S_{2x})$
+
+#### 6. The Optimal Least-Squares Estimation
+$`\begin{bmatrix}\omega_x\\ \omega_y\\ \omega_z\end{bmatrix}_{opt}=\frac{1}{R}\begin{bmatrix}\frac{1}{2}(S_{1y}-S_{2y})\\ \frac{1}{\sqrt{2}}(S_{1x}-S_{2x})\\ \frac{1}{\sqrt{2}}(S_{1x}+S_{2x})\end{bmatrix}`$
+
+Why this is mathematically powerful:
+- Noise Averaging on X: Instead of relying entirely on one sensor for $\omega_x$, the calculation takes the arithmetic mean of both channels: $\omega_x = \frac{S_{1y} + (-S_{2y})}{2R}$. If one sensor undergoes a micro-slip or hits a dusty patch on the ball, the error is cut in half.
+
+```
+// Define the geometric transformation constant
+const float SQRT2 = 1.4142135624f; 
+void calculate_global_movement(float dx1, float dy1, float dx2, float dy2, 
+                                float &out_wx, float &out_wy, float &out_wz) {
+    out_wx = dy1 - dy2;
+    out_wy = SQRT2 * (dx1 - dx2);
+    out_wz = SQRT2 * (dx1 + dx2);
+}
+
+void setup() {
+    Serial.begin(115200);
+}
+
+void loop() {
+    // 2. Read your raw sensor delta accumulations
+    float s1_dx = 12.0f; // Example values from your sensor polling logic
+    float s1_dy = -4.0f;
+    float s2_dx = -8.0f;
+    float s2_dy = 6.0f;
+
+    // 3. Declare standard variables to hold the outputs
+    float wx = 0.0f;
+    float wy = 0.0f;
+    float wz = 0.0f;
+
+    // 4. Call the function naturally! 
+    // Behind the scenes, the function writes directly to wx, wy, and wz.
+    calculate_global_movement(s1_dx, s1_dy, s2_dx, s2_dy, wx, wy, wz);
+
+    // 5. Use your calculated vectors
+    Serial.print("Global WX: "); Serial.println(wx);
+    Serial.print("Global WY: "); Serial.println(wy);
+    Serial.print("Global WZ: "); Serial.println(wz);
+
+    delay(10); // Standard polling delay
+}
+```
 
 ---
 ### Configuration two:
@@ -149,9 +245,9 @@ For Sensor 2 (-60°S, 150°E):
 To run this on the ESP32-S2, we must invert the system of equations. Since we have 4 inputs ($\Delta X_1$, $\Delta Y_1$, $\Delta X_2$, $\Delta Y_2$) and only 3 unknown outputs ($\omega_x, \omega_y, \omega_z$), the system is overdetermined. We use a least-squares matrix inversion to get the most accurate, mathematically balanced translation.
 
 When solved, the exact quantitative formulas for the firmware are:\
-$\omega _x=-\frac{\sqrt{3}}{2} \Delta Y_1 - \frac{1}{2} \Delta Y_2$\
-$\omega _y=\frac{1}{2} \Delta Y_1 - \frac{\sqrt{3}}{2} \Delta Y_2$\
-$\omega _z=-\Delta X_1 - \Delta X_2 - \frac{\sqrt{3}}{2} \Delta Y_1 + \frac{\sqrt{3}}{2} \Delta Y_2$
+$\omega_x=-\frac{\sqrt{3}}{2} \Delta Y_1 - \frac{1}{2} \Delta Y_2$\
+$\omega_y=\frac{1}{2} \Delta Y_1 - \frac{\sqrt{3}}{2} \Delta Y_2$\
+$\omega_z=-\Delta X_1 - \Delta X_2 - \frac{\sqrt{3}}{2} \Delta Y_1 + \frac{\sqrt{3}}{2} \Delta Y_2$
 
 #### Quantitative Insights from the Matrix:
 - **The Radius/Speed Scaling**: Notice the multiplier for $\omega_z$ features a coefficient of 1 for the $\Delta X$ inputs. This compensates for the fact that at 60°S, the radius of the latitude circle is exactly half `cos(60°)=0.5` of the ball's actual radius. The firmware scales up the Z-axis inputs by 2x to ensure twisting feels just as fast as rolling.
