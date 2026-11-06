@@ -366,9 +366,9 @@ void run_high_performance_trackball_pipeline() {
 
 ## Motion Sensor
 The Optimal Least-Squares Estimation\
-$\omega_x = \frac{1}{2}(S_{1y}-S_{2y})$
-$\omega_y = \frac{1}{\sqrt{2}}(S_{1x}-S_{2x})$
-$\omega_z = \frac{1}{\sqrt{2}}(S_{1x}+S_{2x})$
+- $\omega_x = \frac{1}{2}(S_{1y}-S_{2y})$
+- $\omega_y = \frac{\sqrt{2}}{2}(S_{1x}-S_{2x})$
+- $\omega_z = \frac{\sqrt{2}}{2}(S_{1x}+S_{2x})$
 
 ```
 // Define the geometric transformation constant
