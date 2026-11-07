@@ -1,39 +1,6 @@
 # Geometry Kinematics
 ## A. Qualitative Analysis
-### Movement 1: Pure Twist (Z-Axis Rotation)
-Imagine twisting the ball counter-clockwise (spinning it like a top).
-- Because both sensors are sitting at the exact same distance from the equator (60°S), the ball's surface slides sideways over both windows at the exact same speed.
-- The surface moves right-to-left past Sensor 1 (90°W) and Sensor 2 (90°E).
-- The Math: Both sensors register a pure horizontal shift in their local X-axes:\
-  $\Delta X_1=\Delta X_2$
-  
-  Therefore, to isolate Twist (Z), you look for when their X-axes move in perfect unison:\
-  $Z=\Delta X_1+\Delta X_2$
 
-### Movement 2: Pure Roll Forward/Backward (Desk X-Axis)
-Imagine rolling the top of the ball away from your wrist (toward 180°E).
-- The ball is rotating around an axis that runs from 90°W to 90°E.
-- At Sensor 1 (90°W), the surface moves right-to-left, registers movement in its local X-axis $-\Delta X_1$.
-- At Sensor 2 (90°E), the surface moves left-to-right, registers movement in its local X-axis $\Delta X_2$.
-- The Math: To calculate pure forward/backward desk movement, subtract their local X deltas to combine the motion:\
-  $X_{desk}=\Delta X_2-\Delta X_1$
-
-### Movement 3: Pure Tilt Left/Right (Desk Y-Axis)
-Imagine rolling the top of the ball to the right (toward 90°E).
-- The sensors are 180 degrees apart in longitude.
-- The surface moves bottom-up on Sensor 1 (90°W) while top-down on Sensor 2 (90°E). There's no lateral movement since the moving path going through same meridian both sensors are on.
-- The Sensor 1 registers movement in its local Y-axis $\Delta Y_1$.
-- The Sensor 2 registers movement in its local Y-axis $-\Delta Y_2$.
-- The Math: To calculate pure Left/Right desk movement, subtract their local Y deltas to combine the motion:\
-  $Y_{desk}=\Delta Y_1-\Delta Y_2$
-
-### Summary
-By placing them precisely 180° apart on the same latitude, the ESP32-S2 firmware can compute the 3D navigation using simple addition and subtraction before sending it over USB:
-1. Desk Cursor $X = \Delta X_2 - \Delta X_1$
-2. Desk Cursor $Y = \Delta Y_1 - \Delta Y_2$
-3. CAD Twist $Z = \Delta X_1 + \Delta X_2$
-
-## B. Quantitative Calculation
 ### Global Deck Coordinates (Cartesian coordinate, right handed):
 Let the Trackball center be at the origin $(0,0,0)$ in a standard right-handed 3D Cartesian coordinate system 
 - X axis: pointing and increasing out towards viewer (the Prime Meridian, 0° Longitude, $+x$) on horizontal plane.
@@ -44,6 +11,41 @@ Let the Trackball center be at the origin $(0,0,0)$ in a standard right-handed 3
 - $+\omega_z$ = Twisting the ball counter-clockwise around Z-axis (looking from above).
 - Equator is latitude 0°, increasing upward, North pole is 90°, South pole is -90°.
 - X axis direction is longitude 0° (Prime Meridian), towards wrist.
+
+### Movement 1: Pure Tilt Left/Right (Desk Y-Axis, $\omega_x$+)
+Imagine rolling the top of the ball to the left (toward 90°W).
+- The sensors are 180 degrees apart in longitude.
+- The surface moves bottom-up on Sensor 1 (90°E) while top-down on Sensor 2 (90°W). There's no lateral movement since the moving path going through same meridian both sensors are on.
+- The Sensor 1 registers movement in its local Y-axis $\Delta Y_1$.
+- The Sensor 2 registers movement in its local Y-axis $-\Delta Y_2$.
+- The Math: To calculate pure Left/Right desk movement, subtract their local Y deltas to combine the motion:\
+  $\omega_x=\Delta Y_1-\Delta Y_2$
+  
+### Movement 2: Pure Roll Forward/Backward (Desk X-Axis, $\omega_y$+)
+Imagine rolling the top of the ball away from your wrist (toward 180°E).
+- The ball is rotating around an axis that runs from 90°W to 90°E.
+- At Sensor 1 (90°E), the surface moves left-to-right, registers movement in its local X-axis $\Delta X_1$.
+- At Sensor 2 (90°W), the surface moves right-to-left, registers movement in its local X-axis $-\Delta X_2$.
+- The Math: To calculate pure forward/backward desk movement, subtract their local X deltas to combine the motion:\
+  $\omega_y=\Delta X_1-\Delta X_2$
+
+### Movement 3: Pure Twist (Z-Axis Rotation, $\omega_z$+)
+Imagine twisting the ball counter-clockwise (spinning it like a top but reversely).
+- Because both sensors are sitting at the exact same distance from the equator (60°S), the ball's surface slides sideways over both windows at the exact same speed.
+- The surface moves right-to-left past Sensor 1 (90°E) and Sensor 2 (90°W).
+- The Math: Both sensors register a pure horizontal shift in their local X-axes:\
+  $\Delta X_1=\Delta X_2$
+
+  Therefore, to isolate Twist (Z), you look for when their X-axes move in perfect unison:\
+  $\omega_z=\Delta X_1+\Delta X_2$
+
+### Summary
+By placing them precisely 180° apart on the same latitude, the ESP32-S2 firmware can compute the 3D navigation using simple addition and subtraction before sending it over USB:
+1. Desk Cursor Y $\implies \omega_x = \Delta Y_1 - \Delta Y_2$
+2. Desk Cursor X $\implies \omega_y = \Delta X_1 - \Delta X_2$
+3. CAD Twist Z $\implies \omega_z = \Delta X_1 + \Delta X_2$
+
+## B. Quantitative Calculation
 
 ### Configuration A:
 The two sensors are 180° apart, reside on the same latitude circle 45° South.  They are globally orthogonal on two perpendicular global radius line.  Here is the mathematical breakdown of how the trackball's rotation translates into sensor readings.
