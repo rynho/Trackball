@@ -357,24 +357,36 @@ void run_high_performance_trackball_pipeline() {
 ## PAW3805 Register
 | Address | Register (Read/Write) | Defult Value | Notes |
 | -- | -- | -- | -- |
-| 0x0D | CPI X (RW) | 0x27 -> 1014 CPI | About 27 per step.<br />500(513)->0x13(19), 1000(1026)->0x26(38),<br />1500(1512)->0x38(56), 3000(3024)->0x70(112) |
-| 0x0E | CPI Y (RW) | 0x2B -> 1118 CPI | About 24.5 per step.<br />500(514.5)->0x15(21), 1000(1029)->0x2A(42),<br />1500(1519)->0x3E(62), 3000(3013.5)->0x7B(123) |
-| 0x11 | X Hi (RW) | - | High byte of 16-bit X movement. |
+| 0x00 | Prod ID1 (R) | 0x31 | PID [11:4] |
+| 0x01 | Prod ID2 (R) | 0x61 | [7:4] PID [3:0], [3:0] VID [3:0] |
+| 0x02 | Motion Status (R) | - | [7] Motion  1=movement registers ready.<br/> [5] DYOVF 1=Y buffer overflowed. <br/> [4] DXOVF 1=X buffer overflowed.|
+| 0x0D | CPI X (RW) | - | About 27 per step.<br /> 800->0x1F, **1200**->0x2E<br /> 1600->0x3C, 2400->0x5B |
+| 0x0E | CPI Y (RW) | - | About 24.5 per step.<br />800->0x22, **1200**->0x32<br /> 1600->0x43, 2400->0x64 |
 | 0x03 | X Lo (RW) | - | Low byte of X movement. |
-| 0x12 | Y Hi (RW) | - | High byte of 16-bit Y movement. |
 | 0x04 | Y Lo (RW) | - | Low byte of Y movement. |
+| 0x11 | X Hi (RW) | - | High byte of 16-bit X movement. |
+| 0x12 | Y Hi (RW) | - | High byte of 16-bit Y movement. |
+| 0x05 | Operation Mode (RW) | 0xB8 | [4] Sleep1 enable=1; [3] Sleep2 enable=1 => 0xB8. |
+| 0x06 | Config (RW) | 0x10 | [5] Sleep3 enable=1 => 0x30. |
+| 0x09 | Write Protect (RW) | 0x00 | **Enabled** (registers after 0x09 are read-only)=0x00;<br /> Disabled=0x5A. |
+| 0x19 | Orientation (RW) | 0x14 | Sensor A (90°E)= B (90°W)=0x14. |
+| 0x26 | MFIO Config (RW) | 0x34 | Quick-Burst=0x1C. |
+| 0x51 | LED Current (RW) | 0x0E | [4:0] * 1.2mA, 0-31 (37.2mA). Default is 16.8mA. |
+| 0x61 | Frame Avg (R) | - | Average brightness within a frame (35x35), 0-255. |
+| 0x13 | IQ (R) | -  | Image Quality, number of valid feature in current frame. 0-255. |
+| 0x15 | Shutter (R) | - | LED shutter time, shutter*0.512+2.6us. 0-255. |
 
 ## Motion Sensor
-The Optimal Least-Squares Estimation\
-- $\omega_x = \frac{1}{2}(S_{1y}-S_{2y})$
-- $\omega_y = \frac{\sqrt{2}}{2}(S_{1x}-S_{2x})$
-- $\omega_z = \frac{\sqrt{2}}{2}(S_{1x}+S_{2x})$
+The Optimal Least-Squares Estimation
+- $\omega_x = \frac{1}{2}(S_{1y}-S_{2y}) \propto S_{1y}-S_{2y}$
+- $\omega_y = \frac{\sqrt{2}}{2}(S_{1x}-S_{2x}) \propto \sqrt{2}(S_{1x}-S_{2x})$
+- $\omega_z = \frac{\sqrt{2}}{2}(S_{1x}+S_{2x}) \propto \sqrt{2}(S_{1x}+S_{2x})$
 
 ```
 // Define the geometric transformation constant
 const float SQRT2 = 1.4142135624f; 
-void calculate_global_movement(float dx1, float dy1, float dx2, float dy2, 
-                                float &out_wx, float &out_wy, float &out_wz) {
+void calculate_global_movement(float dx1, float dy1, float dx2, float dy2,
+                               float &out_wx, float &out_wy, float &out_wz) {
     out_wx = dy1 - dy2;
     out_wy = SQRT2 * (dx1 - dx2);
     out_wz = SQRT2 * (dx1 + dx2);
