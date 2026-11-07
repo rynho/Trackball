@@ -42,7 +42,7 @@ The ESP32-S2 features a flexible GPIO matrix, which means you can assign any gen
 Implement the trackball as a 3-channel composite device:
 - Channel 1 (HID Mouse): Sends standard mouse movements (X/Y deltas) and standard clicks.
 - Channel 2 (HID SpaceMouse/Joystick): A separate HID endpoint simulating a multi-axis 6DOF controller for CAD or 3D navigation.
-- Channel 3 Configuration.
+- Channel 3 Configuration.  (20261106: consider using WebHID API)
 	- In Office mode (USB CDC-ACM / Virtual COM Port): A standard serial communications port used to host the text-based configuration menu.
 	- In Home mode (USB RNDIS): The virtual network interface initializes instantly over the wire. You open your browser, navigate to your crisp local dashboard page (e.g., http://192.168.7.1), click your settings, and save.
 	- In both case, implement "apply" to test in RAM, and include <Preferences.h> in Arduino IDE to save the config in flash storage.
