@@ -208,6 +208,8 @@ void handleSerialCommands() {
       writeRegister(REG_WRITE_PROTECT, 0x00); // 3. Re-lock protection
       
       Serial.printf("--> [UPDATED] Step: %d | Current: %.1f mA\n", currentLedStep, currentLedStep * 1.2);
+    } else {
+      Serial.println("--> [BLOCKED] Target step exceeds safe testing ceiling (Max Step 25 / 30mA).");
     }
   }
 }
