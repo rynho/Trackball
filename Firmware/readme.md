@@ -1,6 +1,6 @@
 ## MCU Pin Mapping
-1. Dual PAW3805EK Sensors (6 Pins)
-The ESP32-S2 features a flexible GPIO matrix, which means you can assign any general-purpose pin to act as your SPI lines.
+1. Dual PAW3805EK Sensors (7 Pins)
+The ESP32-S2 features a flexible GPIO matrix, which means it can assign any general-purpose pin to act as SPI lines.
 	- Shared SCLK: GPIO 3
  	- Shared QB (MFIO): GPIO 5
 	- CS Sensor A: GPIO 7
@@ -19,8 +19,8 @@ The ESP32-S2 features a flexible GPIO matrix, which means you can assign any gen
 	- Forward/Back Macro: GPIO 39
 
 4. Config
-	- Leveraging an extra USB channel to configure instead of hardware buttons.
-	- Every boot default to CLI mode, use command to switch GUI.
+	- Leveraging an extra USB interface to configure.
+	- Implement WebHID for config.
 
 5. Caution
 	- GPIO 0 is kept empty: it's wired directly to physical on-board "BOOT" button.
@@ -31,323 +31,62 @@ The ESP32-S2 features a flexible GPIO matrix, which means you can assign any gen
  	- GPIO 45, 46: Strapping pins for VDD_SPI voltage and boot log printing. Avoid using these for critical sensor lines.
 
 
-## Configuration Consideration
-- Implement two config mode: CLI and GUI.
-- The CLI mode is for office, leverages CDC-ACM (virtual serial) to avoid security concern. E.g., company computer usually has DLP monitoring that not allow writing access to peripherals. A CLI leveraging serial interface usually acceptable though. 
-- The GUI mode is for home, which implements RNDIS (virtual ethernet) to allow a user friendly web GUI.
-- Some config options include DPI (500, 1000, 1500, 3000), Polling Rate (125, 500, 1000), Multi-Axis (enable 6DOF control), and to "apply" and "save" the config.
-- Compare to most office mouse, 1000 DPI and 125Hz polling rate would be default. Under the hood, 125Hz polling is the ceiling of Low-Speed USB data rate, and 1,000Hz is for Full Speed USB. ESP32-S2 features the built-in USB 2.0 Full-Speed OTG.
-
-## USB Interface
+## USB Interface and Configuration
 Implement the trackball as a 3-channel composite device:
-- Channel 1 (HID Mouse): Sends standard mouse movements (X/Y deltas) and standard clicks.
-- Channel 2 (HID SpaceMouse/Joystick): A separate HID endpoint simulating a multi-axis 6DOF controller for CAD or 3D navigation.
-- Channel 3 Configuration.  (20261106: consider using WebHID API)
-	- In Office mode (USB CDC-ACM / Virtual COM Port): A standard serial communications port used to host the text-based configuration menu.
-	- In Home mode (USB RNDIS): The virtual network interface initializes instantly over the wire. You open your browser, navigate to your crisp local dashboard page (e.g., http://192.168.7.1), click your settings, and save.
-	- In both case, implement "apply" to test in RAM, and include <Preferences.h> in Arduino IDE to save the config in flash storage.
+- Interface 0 (HID Mouse): Sends standard mouse movements (X/Y deltas) and standard clicks.
+- Interface 1 (HID SpaceMouse/Joystick): A separate HID endpoint simulating a multi-axis 6DOF controller for CAD or 3D navigation.
+- Interface 2 (WebHID): Custom WebHID Configurator Endpoint.
+
+- Some config options include DPI (800, 1200, 1600, 2400), Polling Rate (125, 500, 1000), Multi-Axis (enable 6DOF control), and to "apply" and "save" the config.
+- Compare to most office mouse, 1200 DPI and 125Hz polling rate would be default. Under the hood, 125Hz polling is the ceiling of Low-Speed USB data rate (USB 1.1, 1.5 Mbps), and 1,000Hz is for Full-Speed USB (USB 1.1, 12 Mbps). ESP32-S2 features the built-in USB 2.0 Full-Speed OTG.
+
+Browser app will safely ignore Interface 0 and 1, explicitly locking onto and opening Interface 2 using its dedicated usagePage and usage. Implement "apply" to test in RAM, and include <Preferences.h> in Arduino IDE to save the config in flash storage.
+
+### 1. Define HID Report Descriptor
+To make a generic HID interface talk to WebHID, we must define a custom collection in USB report descriptor. On the ESP32-S2 (using TinyUSB underneath the Arduino core), it will need a descriptor that looks like this:
 ```
-#include "USB.h"
-#include "USBHIDMouse.h" // Replace with your compound HID/SpaceMouse stack down the line
-#include "USBCDC.h"
-#include "USBNetwork.h"
-#include <WebServer.h>
-#include <Preferences.h>
+// Example Custom Config HID Report Descriptor
+#define TUD_HID_REPORT_DESC_CONFIG(...) \
+  HID_USAGE_PAGE_N ( 0xFF00, 2   ), /* Vendor-Defined Usage Page 0xFF00 */ \
+  HID_USAGE        ( 0x01        ), /* Vendor-Defined Usage 0x01 */ \
+  HID_COLLECTION   ( HID_COLLECTION_APPLICATION ), \
+    /* Input Report: Device -> Browser */ \
+    HID_REPORT_ID  ( 1 ) \
+    HID_USAGE      ( 0x02        ), \
+    HID_REPORT_SIZE( 8           ), \
+    HID_REPORT_COUNT( 64         ), /* 64-byte chunks are standard for Full-Speed */ \
+    HID_INPUT      ( HID_DATA | HID_VARIABLE | HID_ABSOLUTE ), \
+    /* Output Report: Browser -> Device */ \
+    HID_REPORT_ID  ( 2 ) \
+    HID_USAGE      ( 0x03        ), \
+    HID_REPORT_SIZE( 8           ), \
+    HID_REPORT_COUNT( 64         ), \
+    HID_OUTPUT     ( HID_DATA | HID_VARIABLE | HID_ABSOLUTE ), \
+  HID_COLLECTION_END
 
-// --- Pin Assignments ---
-const int CONFIG_BTN_PIN = 2; // Switched to GPIO2 as requested
-
-// --- Profile Presets ---
-const uint16_t cpi_presets[] = {500, 1000, 1500, 3000}; // Added 1000 CPI
-const uint16_t poll_presets[] = {125, 500, 1000};
-const int NUM_CPI = sizeof(cpi_presets) / sizeof(cpi_presets[0]);
-const int NUM_POLL = sizeof(poll_presets) / sizeof(poll_presets[0]);
-
-// --- Profile State Vectors ---
-// Stored = what's in Flash | Active = what the hardware is running right now
-int saved_cpi_idx = 1;         // Default to index 1 (1000 CPI) on first boot
-int saved_poll_idx = 0;        // Default to index 0 (125 Hz) on first boot
-bool saved_spacemouse_mode = false; // Default to false (no 6DOF) on first boot
-
-int active_cpi_idx = 1;  
-int active_poll_idx = 0; 
-bool is_spacemouse_mode = false;
-
-// --- State Machine & Debounce ---
-enum USBProfile { PROFILE_CLI, PROFILE_GUI }; // Renamed to CLI and GUI
-USBProfile current_usb_profile = PROFILE_CLI;
-
-const unsigned long HOLD_TIME_MS = 2000; 
-unsigned long btn_press_start_time = 0;
-bool btn_was_pressed = false;
-
-Preferences prefs;
-WebServer server(80); 
-
-// Global composite USB class interfaces
-// Channel 1 & 2: Mounted via the HID Subsystem (Standard Mouse + Multi-Axis SpaceMouse)
-USBHIDMouse MouseInterface; 
-// Note: Down the line, you will combine this with a custom report descriptor 
-// to expose Interface 0 (Mouse) and Interface 1 (SpaceMouse/Joystick) simultaneously.
-
-// Channel 3 (Profile 1 Option): Virtual Serial COM Line
-USBCDC SerialInterface; 
-
-// Channel 3 (Profile 2 Option): Virtual Network Card
-USBNetwork NetworkInterface; 
-
-// Local IP endpoints for over-the-wire browser routing
-IPAddress local_IP(192, 168, 7, 1);
-IPAddress gateway(192, 168, 7, 1);
-IPAddress subnet(255, 255, 255, 0);
-
-void apply_hardware_profiles() {
-  uint16_t target_cpi = cpi_presets[active_cpi_idx];
-  uint16_t target_poll = poll_presets[active_poll_idx];
-
-  // --- TODO: Sensor Write Routines ---
-  // 1. Bit-bang target_cpi down your shared-clock SPI bus to PAW3805EK registers
-  // 2. Modify USB bInterval configuration mappings to enforce target_poll speeds
-}
-
-void commit_settings_to_flash() {
-  // Software Value Filtering: Only issue writes if current runtime attributes diverge from flash records
-  bool data_changed = false;
-
-  if (active_cpi_idx != saved_cpi_idx) {
-    saved_cpi_idx = active_cpi_idx;
-    prefs.putInt("cpi_idx", saved_cpi_idx);
-    data_changed = true;
-  }
-  if (active_poll_idx != saved_poll_idx) {
-    saved_poll_idx = active_poll_idx;
-    prefs.putInt("poll_idx", saved_poll_idx);
-    data_changed = true;
-  }
-  if (is_spacemouse_mode != saved_spacemouse_mode) {
-    saved_spacemouse_mode = is_spacemouse_mode;
-    prefs.putBool("space_mode", saved_spacemouse_mode);
-    data_changed = true;
-  }
-
-  if (data_changed) {
-    Serial.println("[NVS] Configuration state modified. Changes successfully written to Flash.");
-  } else {
-    Serial.println("[NVS] Run states match storage bounds. Flash write bypassed to preserve sectors.");
-  }
-}
-
-// --- HTML Configuration Webpage ---
-void handle_root_route() {
-  String html = "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'>";
-  html += "<style>body{font-family:sans-serif; background:#121212; color:#fff; text-align:center; padding:20px;}";
-  html += "select, button{padding:12px; margin:10px; width:80%; max-width:300px; border-radius:6px; border:none; font-size:16px;}";
-  html += ".btn-apply{background:#17a2b8; color:#fff; font-weight:bold; cursor:pointer;}";
-  html += ".btn-save{background:#28a745; color:#fff; font-weight:bold; cursor:pointer;}</style>";
-  html += "<title>Trackball Profile GUI</title></head><body>";
-  html += "<h2>Trackball Profile GUI Portal</h2>";
-  html += "<form method='POST'>";
-  
-  // CPI Selector
-  html += "<label>Resolution (CPI):</label><br><select name='cpi'>";
-  for(int i=0; i<NUM_CPI; i++) {
-    html += "<option value='" + String(i) + "'" + (i == active_cpi_idx ? " selected" : "") + ">" + String(cpi_presets[i]) + " CPI</option>";
-  }
-  html += "</select><br><br>";
-
-  // Polling Selector
-  html += "<label>Polling Rate:</label><br><select name='poll'>";
-  for(int i=0; i<NUM_POLL; i++) {
-    html += "<option value='" + String(i) + "'" + (i == active_poll_idx ? " selected" : "") + ">" + String(poll_presets[i]) + " Hz</option>";
-  }
-  html += "</select><br><br>";
-
-  // SpaceMouse Selector
-  html += "<label>Multi-Axis Mode:</label><br><select name='spacemouse'>";
-  html += "<option value='0'" + String(!is_spacemouse_mode ? " selected" : "") + ">Standard Mouse</option>";
-  html += "<option value='1'" + String(is_spacemouse_mode ? " selected" : "") + ">SpaceMouse Simulation (6DOF)</option>";
-  html += "</select><br><br>";
-
-  html += "<button type='submit' formaction='/apply' class='btn-apply'>Apply & Test (RAM Only)</button><br>";
-  html += "<button type='submit' formaction='/save' class='btn-save'>Save Permanently (Flash)</button>";
-  html += "</form></body></html>";
-  server.send(200, "text/html", html);
-}
-
-void handle_web_apply() {
-  if (server.hasArg("cpi") && server.hasArg("poll") && server.hasArg("spacemouse")) {
-    active_cpi_idx = server.arg("cpi").toInt();
-    active_poll_idx = server.arg("poll").toInt();
-    is_spacemouse_mode = server.arg("spacemouse").toInt() == 1;
-
-    apply_hardware_profiles(); // Execution adjustments in RAM without writing to Flash
-    handle_root_route();       // Reload screen with active properties
-  }
-}
-
-void handle_web_save() {
-  if (server.hasArg("cpi") && server.hasArg("poll") && server.hasArg("spacemouse")) {
-    active_cpi_idx = server.arg("cpi").toInt();
-    active_poll_idx = server.arg("poll").toInt();
-    is_spacemouse_mode = server.arg("spacemouse").toInt() == 1;
-
-    apply_hardware_profiles();
-    commit_settings_to_flash(); // Run matching optimization checks and store variables
-
-    String response = "<html><body><h2>Settings Saved Successfully!</h2><p>Safe in NVS flash. Switch profile button when ready.</p></body></html>";
-    server.send(200, "text/html", response);
-  }
-}
-
-void handle_serial_cli() {
-  if (Serial.available() > 0) {
-    String command = Serial.readStringUntil('
-');
-    command.trim();
-
-    if (command.startsWith("SET_CPI ")) {
-      int val = command.substring(8).toInt();
-      for (int i = 0; i < NUM_CPI; i++) {
-        if (cpi_presets[i] == val) {
-          active_cpi_idx = i;
-          Serial.println(">> Target CPI prepared in RAM.");
-          return;
-        }
-      }
-      Serial.println(">> Invalid CPI value.");
-    } 
-    else if (command.startsWith("SET_POLL ")) {
-      int val = command.substring(9).toInt();
-      for (int i = 0; i < NUM_POLL; i++) {
-        if (poll_presets[i] == val) {
-          active_poll_idx = i;
-          Serial.println(">> Target Polling prepared in RAM.");
-          return;
-        }
-      }
-      Serial.println(">> Invalid Polling value.");
-    }
-    else if (command.startsWith("SET_6DOF ")) {
-      int val = command.substring(9).toInt();
-      is_spacemouse_mode = (val == 1);
-      Serial.println(">> Target 6DOF mode prepared in RAM.");
-    }
-    else if (command.equals("APPLY")) {
-      apply_hardware_profiles();
-      Serial.println(">> Profile applied to hardware layers (RAM only).");
-    } 
-    else if (command.equals("SAVE")) {
-      apply_hardware_profiles();
-      commit_settings_to_flash();
-      Serial.println(">> Parameters locked securely to NVS Flash storage.");
-    }
-  }
-}
-
-void switch_usb_stack_runtime(USBProfile target_mode) {
-  USB.end();
-  delay(500); // Disconnect settling pause
-
-  if (target_mode == PROFILE_GUI) {
-    current_usb_profile = PROFILE_GUI;
-    
-    // --- BINDING PROFILE GUI (Mouse + SpaceMouse + RNDIS Network Portal) ---
-    USB.PID(0x4002); 
-    USB.productName("Trackball GUI");
-
-    NetworkInterface.begin(local_IP, gateway, subnet);
-    server.begin();
-    
-    USB.begin(); 
-  } else {
-    current_usb_profile = PROFILE_CLI;
-    
-    // --- BINDING PROFILE CLI (Mouse + SpaceMouse + CDC-ACM Serial) ---
-    server.stop();
-    
-    USB.PID(0x4001); 
-    USB.productName("Trackball CLI");
-
-    SerialInterface.begin(115200);
-    MouseInterface.begin();
-    
-    USB.begin();
-  }
-}
-
-void setup() {
-  pinMode(CONFIG_BTN_PIN, INPUT_PULLUP);
-
-  // Pull configuration attributes from NVS memory pools
-  prefs.begin("trackball", false);
-  
-  // Note: Defaults specify index 1 (1000 CPI), index 0 (125 Hz), and false (no 6DOF) for first boot
-  saved_cpi_idx = prefs.getInt("cpi_idx", 1);    
-  saved_poll_idx = prefs.getInt("poll_idx", 0);  
-  saved_spacemouse_mode = prefs.getBool("space_mode", false);
-
-  // Initialize runtime variables using values pulled from storage
-  active_cpi_idx = saved_cpi_idx;
-  active_poll_idx = saved_poll_idx;
-  is_spacemouse_mode = saved_spacemouse_mode;
-
-  // Configure Profile 1 (Default Whitelisted Identity: Profile CLI)
-  USB.VID(0x303A); // Standard Espressif VID (or use a generic whitelisted one)
-  USB.PID(0x4001); 
-  USB.manufacturer("Custom Trackball");
-  USB.productName("Profile CLI");
-
-  // Mount composite elements
-  SerialInterface.begin(115200); 
-  MouseInterface.begin();
-
-  apply_hardware_profiles();
-
-  // Always force standard Profile 1 (Profile CLI) on hardware power-up/replug
-  current_usb_profile = PROFILE_CLI;
-  USB.begin();
-}
-
-void loop() {
-  unsigned long current_time = millis();
-
-  // --- Dynamic Switch Monitoring Loop (GPIO2) ---
-  if (digitalRead(CONFIG_BTN_PIN) == LOW) {
-    if (!btn_was_pressed) {
-      btn_press_start_time = current_time;
-      btn_was_pressed = true;
-    } else if (current_time - btn_press_start_time > HOLD_TIME_MS) {
-      btn_was_pressed = false; 
-      
-      if (current_usb_profile == PROFILE_CLI) {
-        switch_usb_stack_runtime(PROFILE_GUI);
-      } else {
-        switch_usb_stack_runtime(PROFILE_CLI);
-      }
-    }
-  } else {
-    btn_was_pressed = false;
-  }
-
-  // --- Execution Routine Selection Mapping ---
-  if (current_usb_profile == PROFILE_GUI) {
-    server.handleClient();
-  } else {
-    handle_serial_cli();
-  }
-
-  // Pure High-Performance Loop Pipeline (1,000 Hz structural block target)
-  run_high_performance_trackball_pipeline();
-}
-
-void run_high_performance_trackball_pipeline() {
-  // Your 1,000 Hz tracking operations run continuously here across both routing modes:
-  // 1. Fetch dual PAW3805EK locations using your shared clock pin (GPIO7)
-  // 2. Decode quadrature state structures on Phase A/B lines for your scroll ring
-  // 3. Assemble and dispatch HID packages over the native USB pipe every 1 ms
-}
 ```
+Using a dedicated Vendor-Defined Usage Page (0xFF00) ensures the operating system doesn't accidentally lock the interface for exclusive OS-mouse use, leaving it completely open for the WebHID browser context.
 
+### 2. Light Communication Protocol Design
+Since you want to tweak multiple parameters (CPI presets, bInterval polling rates, and toggling the 6DOF calculation engine), structure your 64-byte payload with a simple Command/Value pairing.
+Example Browser-to-Device Packets (Output Reports):
+- Change CPI: [0x01, 0x02, ...rest zeros] → Command 0x01 (Set CPI), Value 0x02 (Index 2: 1500 CPI).
+- Toggle 6DOF: [0x02, 0x01, ...rest zeros] → Command 0x02 (6DOF Mode), Value 0x01 (Enabled).
+- Save to Flash: [0x0F, 0x00, ...rest zeros] → Command 0x0F (Commit to NVS).
+
+### 3. Handling Runtime USB Changes (Polling Rate & 6DOF)
+- CPI/DPI Tweaks: This is easy. When your WebHID thread parses a CPI command, immediately bit-bang the updated register offsets to twin PAW3805EK sensors over SPI. No USB reset required.
+- Toggling 6DOF: You can keep the SpaceMouse HID interface alive globally. When `is_spacemouse_mode == false`, firmware simply stops sending reports on Interface 1. This is cleaner than tearing down the whole USB stack.
+- Polling Rate (Dynamic bInterval Change): This is the tricky part. The USB polling rate is defined by the bInterval field inside the Endpoint Descriptor, which the PC reads only during enumeration. If a user alters the polling rate via WebHID, firmware must write the configuration index to <Preferences.h>, close the USB stack via USB.end(), pause, and call USB.begin() to re-enumerate the device with the new bInterval value.
+
+### 4. Seamless Web App Architecture
+Because your configurations fit perfectly into RAM-backed testing routines, you can make an incredible web UI experience:
+1. Provide real-time sliders in your web GUI.
+2. As the user drags a slider, fire a WebHID device.sendReport() immediately.
+3. The trackball updates its active CPI variables in volatile RAM instantly. The user can test the new tracking speed while the web dashboard is open.
+4. Add a clean "Save to Device Profile" button that sends the flash commit command to trigger prefs.putInt() only when they are satisfied.
+
+---
 ## Sensor Communicatoin
 - PAW3805 uses 3-wires SPI, need bit-banging when code in Arduino.
 - ESP32-S2's default hardware SPI library expects two separate wires for data: MOSI (Master Out, Slave In) and MISO (Master In, Slave Out).
