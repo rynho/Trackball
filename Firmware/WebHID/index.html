@@ -1,0 +1,118 @@
+<!-- Block 1: The Styling and Layout (Paste First)
+
+This block sets up a clean, modern dark-mode user interface with sliders and toggles designed specifically for your trackball parameters.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Trackball WebHID Dashboard</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #121212; color: #e0e0e0; text-align: center; padding: 40px; }
+    .card { background: #1e1e1e; max-width: 450px; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+    button { background: #007bff; color: white; border: none; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; margin: 10px; transition: background 0.2s; }
+    button:hover { background: #0056b3; }
+    button.save { background: #28a745; }
+    button.save:hover { background: #218838; }
+    .control-group { margin: 25px 0; text-align: left; }
+    label { display: block; font-weight: bold; margin-bottom: 8px; color: #aaa; }
+    select, input[type="range"] { width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444; border-radius: 6px; color: white; font-size: 14px; box-sizing: border-box; }
+    .status { font-size: 14px; color: #888; margin-top: 15px; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Trackball Config Portal</h2>
+    <button id="connectBtn">Connect Trackball</button>
+    <div id="statusTxt" class="status">Device disconnected. Click Connect to begin.</div>
+
+<!-- Block 2: The UI Interface Elements (Paste Second)
+This block forms the inner settings structure, mapping your exact trackball profile limits: the 4 CPI profiles, the 3 Polling speeds, and the 6DOF calculation engine toggle.
+-->
+    <hr style="border: 1px solid #333; margin: 30px 0;">
+    <div class="control-group">
+      <label for="cpiSelect">Hardware Resolution (CPI):</label>
+      <select id="cpiSelect" disabled>
+        <option value="0">500 CPI</option>
+        <option value="1" selected>1000 CPI (Default)</option>
+        <option value="2">1500 CPI</option>
+        <option value="3">3000 CPI</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="modeSelect">Multi-Axis Engine Mapping:</label>
+      <select id="modeSelect" disabled>
+        <option value="0">Standard Mouse Axis</option>
+        <option value="1">SpaceMouse Simulation (6DOF)</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="pollSelect">USB Polling Rate (Requires Save & Reboot):</label>
+      <select id="pollSelect" disabled>
+        <option value="0">125 Hz (Default)</option>
+        <option value="1">500 Hz</option>
+        <option value="2">1000 Hz</option>
+      </select>
+    </div>
+
+    <button id="saveBtn" class="save" disabled>Save Permanently & Reboot</button>
+
+<!-- 
+Block 3: The WebHID Logic Engine (Paste Last)
+
+This final block injects the secure WebHID driver abstraction layer. It listens for interactions, structures the 64-byte payload arrays, and commands your ESP32-S2 over the raw USB pipe.
+-->
+  <script>
+    let trackball = null;
+
+    const connectBtn = document.getElementById('connectBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const statusTxt = document.getElementById('statusTxt');
+    const cpiSelect = document.getElementById('cpiSelect');
+    const modeSelect = document.getElementById('modeSelect');
+    const pollSelect = document.getElementById('pollSelect');
+
+    connectBtn.addEventListener('click', async () => {
+      try {
+        const devices = await navigator.hid.requestDevice({
+          filters: [{ usagePage: 0xFF00, usage: 0x01 }]
+        });
+        if (devices.length === 0) return;
+        
+        trackball = devices[0];
+        await trackball.open();
+        
+        statusTxt.textContent = "Connected! Altering sliders updates RAM live.";
+        connectBtn.style.display = 'none';
+        [cpiSelect, modeSelect, pollSelect, saveBtn].forEach(el => el.disabled = false);
+      } catch (err) {
+        statusTxt.textContent = "Error: " + err.message;
+      }
+    });
+
+    async function sendReport(command, value) {
+      if (!trackball) return;
+      const report = new Uint8Array(64);
+      report[0] = command;
+      report[1] = value;
+      await trackball.sendReport(2, report);
+    }
+
+    cpiSelect.addEventListener('change', (e) => sendReport(0x01, parseInt(e.target.value)));
+    modeSelect.addEventListener('change', (e) => sendReport(0x02, parseInt(e.target.value)));
+    pollSelect.addEventListener('change', (e) => sendReport(0x03, parseInt(e.target.value)));
+
+    saveBtn.addEventListener('click', async () => {
+      if (!confirm("Commit parameters to NVS flash and cycle USB stack?")) return;
+      await sendReport(0x0F, 0x00);
+      statusTxt.textContent = "Save command dispatched. Re-enumerating hardware...";
+      [cpiSelect, modeSelect, pollSelect, saveBtn].forEach(el => el.disabled = true);
+      trackball = null;
+    });
+  </script>
+</body>
+</html>
+
+  </div>
