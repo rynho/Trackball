@@ -1,5 +1,5 @@
 ## IAS Sensor Board (PAW3805ek-cjv1 x2)
-<img src="PAW3805EK_CJV1.jpg" alt="PAW3805ek-cjv1" width="300">
+<img src="PAW3805ek-cjv1.jpg" alt="PAW3805ek-cjv1" width="300">
 
 | Item | Length/ from left (mm) | Width/ from bottom (mm) |
 |-|-|-|
