@@ -25,3 +25,29 @@
 
 ## Scroll Ring Bearing (1x3 mm PTFE Tube)
 <img src="PTFE Tube.jpg" alt="Scroll Bearing" width="200">
+
+## Ball (57.2mm Billiard Cue Ball)
+<img src="57.2mm Ball.jpg" alt="Ball" width="200">
+
+## Button Socket (MX Hot-Swappable Socket x4)
+<img src="socket.jpg" alt="Socket" width="200">
+
+## Button Switch (MX Keyboard Switch x4)
+<img src="switch.jpg" alt="Button" width="200">
+
+## Nut Insert (M4 OD: 5mm Length: 3mm x5)
+<img src="M4xOD5x3 Nut Insert.jpg" alt="Nut Insert" width="200">
+
+## Screw (M4x6mm x5)
+<img src="M4x6 Screw.jpg" alt="Screw" width="200">
+
+<!--
+## xx
+<img src="xx.jpg" alt="xx" width="200">
+
+## xx
+<img src="xx.jpg" alt="xx" width="200">
+
+## xx
+<img src="xx.jpg" alt="xx" width="200">
+-->
