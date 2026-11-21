@@ -29,17 +29,26 @@
 ## Ball (57.2mm Billiard Cue Ball)
 <img src="57.2mm Ball.jpg" alt="Ball" width="200">
 
+- A bit undersized, measures 56.4mm, though consistent in different dimensions.
+
 ## Button Socket (MX Hot-Swappable Socket x4)
 <img src="socket.jpg" alt="Socket" width="200">
 
 ## Button Switch (MX Keyboard Switch x4)
 <img src="switch.jpg" alt="Button" width="200">
 
+- Initial contact resistance is pretty high (about 400+Ω), could be due to long storage and regular brass material. Open case, scratch contact, reshape spring to increase force reduces resistance to about 2Ω.
+
 ## Nut Insert (M4 OD: 5mm Length: 3mm x5)
 <img src="M4xOD5x3 Nut Insert.jpg" alt="Nut Insert" width="200">
 
+- Smaller side (without knurl) should go in first.
+- User soldering iron heat without much pressure until 90% sunk, then use metal (e.g., screw driver) to settle finish flat, until cooling down.
+
 ## Screw (M4x6mm x5)
 <img src="M4x6 Screw.jpg" alt="Screw" width="200">
+
+- Measures well, though outer thread is a bit undersized, about 3.7-3.8mm.
 
 <!--
 ## xx
