@@ -37,7 +37,8 @@
 ## Button Switch (MX Keyboard Switch x4)
 <img src="switch.jpg" alt="Button" width="200">
 
-- Initial contact resistance is pretty high (about 400+Ω), could be due to long storage and regular brass material. Open case, scratch contact, reshape spring to increase force reduces resistance to about 2Ω.
+- Initial contact resistance is pretty high (about 400+Ω), could be due to long storage and regular brass material.
+- Open case, scratch contact, reshape spring to increase force reduces resistance to about 2Ω.
 
 ## Nut Insert (M4 OD: 5mm Length: 3mm x5)
 <img src="M4xOD5x3 Nut Insert.jpg" alt="Nut Insert" width="200">
